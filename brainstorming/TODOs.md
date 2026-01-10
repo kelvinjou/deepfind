@@ -1,0 +1,43 @@
+# TODOs
+
+- Everyone
+    - [ ]  supabase python SDK setup
+- Aarush
+    - [ ]  transcribing audio to text (WhisperX)
+    - [ ]  setup data tables
+- Kelvin
+    - [ ]  raggedy frontend to show if it works
+    - [ ]  implement chunk overlapping preprocessing step
+    - [ ]  PDF preprocessing - benchmarking just text from PDF
+- Don
+    - [ ]  create SQL function to retrieve results
+    - [ ]  ranking algo with heuristics
+- Bailey
+    - [ ]  image summarization step - ask chatgpt to create a summary in text
+        - [https://platform.openai.com/docs/guides/images-vision](https://platform.openai.com/docs/guides/images-vision)
+
+- Database stuff
+    - setup data tables
+        - files table (metadata + FKEY to chunks?)
+        - chunks table
+    - ~~setup offline supabase~~
+    - ~~create SQL function to retrieve results~~
+- Preprocessing
+    - ~~chunk overlapping preprocessing (text)~~
+    - ~~transcribing audio to text (WhisperX)~~
+    - ~~image summarization step - ask chatgpt to create a summary in text~~
+        - [~~https://platform.openai.com/docs/guides/images-vision~~](https://platform.openai.com/docs/guides/images-vision)
+    - PDF image preprocessing step - create image of each page and ask gpt to look for images or diagrams and summarize them (OpenAI CLIP)
+        - extract image from pdf: [https://medium.com/@alexaae9/python-how-to-extract-images-from-pdf-documents-9492a767a613](https://medium.com/@alexaae9/python-how-to-extract-images-from-pdf-documents-9492a767a613)
+        - OCR the text from the PDF - chunk this
+        - possibly use medium article above to extract image from PDF and then use CLIP?
+- ~~Querying~~
+    - ~~ranking algo with heuristics~~
+- other low priority features
+    - GUI for file explorer
+    - user interactions with the file in the GUI
+    - Commands
+        - /summarize - summarize a specific document
+        - /move - move a specific document to a different location
+    - Convert all commands to agent tools
+    - file change detection using some sort of watcher and compare hash stored in metadata
