@@ -16,6 +16,7 @@ def getMetadata(file_path):
     return [stats.st_birthtime, extension, stats.st_atime]
     
 # Doesn't implement sortByOld for now
+# The greater a is, the slower the score decay
 def getDateHeuristic(btime, sortByNew=True, a=500):
 
     curr_time = time.time()
