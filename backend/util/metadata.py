@@ -1,4 +1,6 @@
 from pathlib import Path
+import time
+import math
 
 def getMetadata(file_path):
 
@@ -13,12 +15,21 @@ def getMetadata(file_path):
     # BTW you may have to edit the creation time attribute for Windows systems
     return [stats.st_birthtime, extension, stats.st_atime]
     
+# Doesn't implement sortByOld for now
+def getDateHeuristic(btime, sortByNew=True, a=500):
 
-def getDateHeuristic():
-    pass
+    curr_time = time.time()
+
+    # f(x, a=500) = 1/ln(1/a * x + e), so f(0) = 1
+    return 1 / math.log(1 / a * (curr_time - btime) + math.e)
 
 def getExtensionHeuristic():
     pass
 
-def getLastAccessHeuristic():
-    pass
+# Doesn't implement sortByOld for now
+def getLastAccessHeuristic(atime, sortByNew=True, a=500):
+
+    curr_time = time.time()
+
+    # f(x, a=500) = 1/ln(1/a * x + e), so f(0) = 1
+    return 1 / math.log(1 / a * (curr_time - atime) + math.e)
