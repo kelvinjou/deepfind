@@ -23,8 +23,11 @@ def getDateHeuristic(btime, sortByNew=True, a=500):
     # f(x, a=500) = 1/ln(1/a * x + e), so f(0) = 1
     return 1 / math.log(1 / a * (curr_time - btime) + math.e)
 
-def getExtensionHeuristic():
-    pass
+def getExtensionHeuristic(extension, target_extensions):
+    if extension in target_extensions:
+        return 1
+    else:
+        return 0
 
 # Doesn't implement sortByOld for now
 def getLastAccessHeuristic(atime, sortByNew=True, a=500):
