@@ -3,7 +3,6 @@ CREATE TABLE files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     file_path TEXT NOT NULL,
     file_name TEXT NOT NULL,
-    file_type TEXT NOT NULL,  -- 'image', 'text', 'pdf', 'audio'
     file_size BIGINT, -- size in bytes
     mime_type TEXT NOT NULL, -- e.g., 'image/png', 'application/pdf'
     file_hash TEXT UNIQUE NOT NULL,  -- to avoid duplicate uploads

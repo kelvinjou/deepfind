@@ -2,3 +2,9 @@ pandas
 sentence_transformers
 fastapi
 uvicorn
+langchain
+langchain_community
+supabase
+python-dotenv
+pymupdf
+nltk
