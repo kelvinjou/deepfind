@@ -90,12 +90,12 @@ def get_valid_file_from_folder(folder_path: str, allowed_mime_types: Optional[se
 # TESTS
 if __name__ == "__main__":
     print("=== Test 1: Get all files ===")
-    all_files = get_valid_file_from_folder("backend/test_files/")
+    all_files = get_valid_file_from_folder("test_files/")
     print(f"Found {len(all_files)} files\n")
     
     print("=== Test 2: Filter by MIME types ===")
     filtered_files = get_valid_file_from_folder(
-        "backend/test_files/",
+        "test_files/",
         {
             'image/png', 'image/jpeg',  # images
             'text/plain', 'application/pdf',  # text
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     print(f"Found {len(filtered_files)} filtered files\n")
     
     print("=== Test 3: Get file properties ===")
-    file = getFileProperties('backend/test_files/text/a_really_long_txt.txt')
+    file = getFileProperties('test_files/text/a_really_long_txt.txt')
     print(f"File: {file.file_name}")
     print(f"Size: {file.file_size} bytes")
     print(f"MIME type: {file.mime_type}")

@@ -1,6 +1,7 @@
 # This utility file is for generating text embeddings using sentence-transformers.
 
 from sentence_transformers import SentenceTransformer
+
 from lib.constants import EMBEDDING_MODEL, EMBEDDING_DIMENSION
 
 # Load model once at module level for efficiency

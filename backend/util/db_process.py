@@ -10,6 +10,43 @@ from util.embedding import get_embeddings
 from util.folder_extraction import get_valid_file_from_folder, getFileProperties, read_text_file_content
 from lib.supabase.util import get_supabase_client
 from util.pdf import extract_pdf_text
+from util.image import generateImageCaption
+
+
+def process_image_file(file_path: str, file_props, client):
+    """Process an image file: generate caption, generate embedding, and insert to DB."""
+    caption = generateImageCaption(file_path)
+    embedding = get_embeddings([caption])
+    
+    # Since image captions are very small, we use a single chunk
+    chunks_data = [
+        {
+            "chunk_index": 0,
+            "content": caption,
+            "chunk_metadata": {
+                # "char_start": 0,
+                # "char_end": len(caption)
+            }
+        }
+    ]
+    
+    metadata = {
+        "char_count": len(caption),
+        "format": "image"
+    }
+    
+    file_id = client.process_file(
+        file_path=file_props.path,
+        file_name=file_props.file_name,
+        mime_type=file_props.mime_type,
+        file_hash=file_props.file_hash,
+        last_modified_at=file_props.last_modified,
+        chunks=chunks_data,
+        embeddings=embedding,
+        file_size=file_props.file_size,
+        metadata=metadata
+    )
+    return file_id
 
 
 def process_text_file(file_path: str, file_props, client):
@@ -80,21 +117,21 @@ def process_pdf_file(file_path: str, file_props, client):
 
 
 # insertions into db
-def txt_db_insert():
+def push_to_db(folder_path: str):
     client = get_supabase_client()
     
     filtered_files = get_valid_file_from_folder(
         # THIS IS CURRENTLY HARD-CODED, CHANGE THIS LATER
-        "test_files/pdf/",
+        folder_path,
         {
-            'text/plain', 'application/pdf'  # text files only
+            'text/plain', 'application/pdf', 'image/jpeg', 'image/png'  # text, pdf, and image files
         }
     )
     
-    print(f"\n📁 Found {len(filtered_files)} text files to process")
+    print(f"\n📁 Found {len(filtered_files)} files to process")
     
     if not filtered_files:
-        print("⚠️  No text files found")
+        print("⚠️  No files found")
         return
 
     for file_path in filtered_files:
@@ -110,6 +147,8 @@ def txt_db_insert():
         try:
             if file_props.mime_type == 'application/pdf':
                 file_id = process_pdf_file(file_path, file_props, client)
+            elif file_props.mime_type in ('image/jpeg', 'image/png'):
+                file_id = process_image_file(file_path, file_props, client)
             else:
                 file_id = process_text_file(file_path, file_props, client)
             
@@ -119,7 +158,7 @@ def txt_db_insert():
 
 
 if __name__ == "__main__":
-    txt_db_insert()
+    push_to_db("test_files/image/")
 
     
 
