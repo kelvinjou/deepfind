@@ -105,9 +105,32 @@ def _strip_headers_footers(pages: list[tuple[int, str]], min_occurrences: int = 
     return cleaned_pages
 
 
+def _is_image_based_page(page) -> bool:
+    """
+    Detect if a page is primarily image-based (scanned/photocopied).
+
+    Returns True if the page has images and very little extractable text,
+    indicating it's likely a scanned document that needs OCR.
+    """
+    # Check if page has images
+    image_list = page.get_images()
+    has_images = len(image_list) > 0
+
+    if not has_images:
+        return False
+
+    # Check text density - if very little text but has images, likely scanned
+    text = page.get_text()
+    text_length = len(text.strip())
+
+    # Heuristic: if less than 100 chars and has images, probably needs OCR
+    # This catches scanned pages with only metadata/artifacts
+    return text_length < 100
+
+
 def _extract_text_by_page(file_path: FilePath) -> list[tuple[int, str]]:
     """
-    Extract text from each page of a PDF.
+    Extract text from each page of a PDF, including OCR for images.
 
     Returns:
         List of tuples (page_number, page_text) where page_number is 1-indexed.
@@ -117,7 +140,28 @@ def _extract_text_by_page(file_path: FilePath) -> list[tuple[int, str]]:
 
     for page_num in range(len(doc)):
         page = doc[page_num]
+
+        # Try regular text extraction first
         text = page.get_text()
+
+        # Run OCR if: (1) no text found, OR (2) page is image-based (scanned/photocopied)
+        should_ocr = not text.strip() or _is_image_based_page(page)
+
+        if should_ocr:
+            try:
+                # OCR the page using Tesseract
+                print(f"🔍 Running OCR on page {page_num + 1}...")
+                textpage = page.get_textpage_ocr()
+                ocr_text = textpage.extractText()
+
+                # Use OCR text if it's better than extracted text
+                if len(ocr_text.strip()) > len(text.strip()):
+                    text = ocr_text
+                    print(f"✓ OCR extracted {len(ocr_text)} chars from page {page_num + 1}")
+            except Exception as e:
+                print(f"⚠️  OCR failed for page {page_num + 1}: {e}")
+                # Fall back to regular text if OCR fails
+
         # Sanitize text to remove null bytes and other problematic characters
         text = _sanitize_text(text)
         if text.strip():  # Only include pages with text
