@@ -93,6 +93,13 @@ def compare_files(file_path_1: str, file_path_2: str) -> str:
     return generate_text(prompt)
 
 
+def generate_study_guide(text: str, num_questions: int = 5) -> str:
+    prompt = (
+        f"Generate a study guide based on the following text. "
+        f"Include {num_questions} questions that cover the key concepts:\n\n{text}\n\n"
+        f"Format the study guide with questions numbered."
+    )
+    return generate_text(prompt)
 
 
 
