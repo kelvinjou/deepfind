@@ -17,6 +17,8 @@ interface AppContextType {
   setQuery: React.Dispatch<React.SetStateAction<string>>;
   results: SearchResults | null;
   setResults: React.Dispatch<React.SetStateAction<SearchResults | null>>;
+  matchCount: number;
+  setMatchCount: React.Dispatch<React.SetStateAction<number>>;
 
   // UI state
   sidebarOpen: boolean;
@@ -58,6 +60,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [results, setResults] = useState<SearchResults | null>(null);
+  const [matchCount, setMatchCount] = useState(10);
   const [loading, setLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [embeddingsGenerated, setEmbeddingsGenerated] = useState(false);
@@ -201,6 +204,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const params = new URLSearchParams({
       query_text: query,
+      match_count: matchCount.toString()
     });
 
     if (selectedFolderPaths.length > 0) {
@@ -324,6 +328,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setQuery,
     results,
     setResults,
+    matchCount,
+    setMatchCount,
     sidebarOpen,
     setSidebarOpen,
     loading,

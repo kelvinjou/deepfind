@@ -3,6 +3,20 @@ import { SearchResultItemProps } from "./types";
 
 export function SearchResultItem({ result, onClick }: SearchResultItemProps) {
   console.log(result);
+  
+  // Format the last modified date
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   return (
     <button
       onClick={() => onClick(result.file_path, result.file_name)}
@@ -16,11 +30,21 @@ export function SearchResultItem({ result, onClick }: SearchResultItemProps) {
           {result.content && (
             <p className="text-sm text-zinc-600 mt-2">{result.content}</p>
           )}
-          {result.similarity && (
-            <p className="text-xs text-zinc-400 mt-2">
-              Similarity: {(result.similarity * 100).toFixed(1)}%
-            </p>
-          )}
+          <div className="flex items-center gap-4 mt-2">
+            {result.similarity && (
+              <p className="text-xs text-zinc-400">
+                Similarity: {(result.similarity * 100).toFixed(1)}%
+              </p>
+            )}
+            {result.similarity && result.last_modified_at && (
+              <span className="text-zinc-300">|</span>
+            )}
+            {result.last_modified_at && (
+              <p className="text-xs text-zinc-400">
+                Modified: {formatDate(result.last_modified_at)}
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </button>

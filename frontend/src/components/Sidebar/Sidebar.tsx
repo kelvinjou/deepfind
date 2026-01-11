@@ -16,6 +16,8 @@ export function Sidebar() {
     preprocess,
     hasUnprocessedSelectedFolders,
     isGeneratingEmbeddings,
+    matchCount,
+    setMatchCount,
   } = useApp();
 
   const activeFolders = folders.filter((f) => !f.archived);
@@ -82,6 +84,20 @@ export function Sidebar() {
               )}
             </div>
             <div className="flex flex-col gap-2 border-t p-4">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs text-zinc-600">
+                  <span>Max results</span>
+                  <span>{matchCount}</span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={25}
+                  value={matchCount}
+                  onChange={(event) => setMatchCount(Number(event.target.value))}
+                  className="w-full"
+                />
+              </div>
               <Button
                 onClick={handleSelectFolder}
                 disabled={isGeneratingEmbeddings}

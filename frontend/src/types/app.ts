@@ -16,6 +16,7 @@ export interface SearchResult {
   file_path: string;
   content?: string;
   similarity?: number;
+  last_modified_at?: string;
 }
 
 export interface SearchResults {

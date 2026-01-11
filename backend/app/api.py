@@ -60,7 +60,7 @@ async def post_directory_path(payload: StoreAssetRequest) -> dict:
 
 
 @app.get("/query")
-async def query_files(query_text: str, archived_folders: str = None) -> dict:
+async def query_files(query_text: str, match_count: int, archived_folders: str = None) -> dict:
     """Query files using semantic search, excluding archived folders.
 
     Args:
@@ -72,7 +72,7 @@ async def query_files(query_text: str, archived_folders: str = None) -> dict:
     """
     print(f"Query received: {query_text}")
     match_threshold = 0.3
-    match_count = 10
+    match_count = match_count
     client = get_supabase_client()
 
     # Parse archived folders JSON array if provided
