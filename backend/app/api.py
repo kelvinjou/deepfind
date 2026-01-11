@@ -14,7 +14,7 @@ from app.model import (
     CopyDirectoryRequest,
     RecentFilesRequest,
 )
-from app import don_tools
+from app.tooling import don_tools
 from lib.scripts.test_query import query_chunks
 from lib.util.db_process import push_to_db
 from fastapi import FastAPI
