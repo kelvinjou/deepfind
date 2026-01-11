@@ -4,17 +4,17 @@ Test the query_file_chunks function after seeding.
 Usage:
     python -m scripts.test_query "your search query here"
     python -m scripts.test_query "your search query" --json output.json
+    python -m scripts.test_query "your search query" --md output.md
 """
 
+from lib.supabase.util import get_supabase_client
+from util.embedding import get_embedding
 import json
 import sys
 from pathlib import Path
 from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from util.embedding import get_embedding
-from lib.supabase.util import get_supabase_client
 
 
 def query_chunks(query: str, match_threshold: float = 0.3, match_count: int = 10) -> list[dict]:
@@ -113,9 +113,11 @@ def export_to_markdown(query: str, results: list[dict], output_path: str, thresh
             if row.get('chunk_metadata'):
                 meta = row['chunk_metadata']
                 if 'page_start' in meta:
-                    lines.append(f"**Pages:** {meta['page_start']} - {meta['page_end']} | **Chunk index:** {row['chunk_index']}")
+                    lines.append(
+                        f"**Pages:** {meta['page_start']} - {meta['page_end']} | **Chunk index:** {row['chunk_index']}")
                 elif 'start_time' in meta:
-                    lines.append(f"**Time:** {meta['start_time']:.1f}s - {meta['end_time']:.1f}s | **Chunk index:** {row['chunk_index']}")
+                    lines.append(
+                        f"**Time:** {meta['start_time']:.1f}s - {meta['end_time']:.1f}s | **Chunk index:** {row['chunk_index']}")
                 lines.append("")
 
             lines.append("### Content")
@@ -136,12 +138,16 @@ def export_to_markdown(query: str, results: list[dict], output_path: str, thresh
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Query the database and optionally export to JSON or Markdown")
+    parser = argparse.ArgumentParser(
+        description="Query the database and optionally export to JSON or Markdown")
     parser.add_argument("query", type=str, help="Search query")
-    parser.add_argument("--threshold", type=float, default=0.3, help="Minimum similarity threshold (0-1)")
-    parser.add_argument("--count", type=int, default=10, help="Maximum number of results")
+    parser.add_argument("--threshold", type=float, default=0.3,
+                        help="Minimum similarity threshold (0-1)")
+    parser.add_argument("--count", type=int, default=10,
+                        help="Maximum number of results")
     parser.add_argument("--json", type=str, help="Export results to JSON file")
-    parser.add_argument("--md", type=str, help="Export results to Markdown file")
+    parser.add_argument(
+        "--md", type=str, help="Export results to Markdown file")
 
     args = parser.parse_args()
 
@@ -151,10 +157,12 @@ def main():
     print_results(args.query, results, args.threshold, args.count)
 
     if args.json:
-        export_to_json(args.query, results, args.json, args.threshold, args.count)
+        export_to_json(args.query, results, args.json,
+                       args.threshold, args.count)
 
     if args.md:
-        export_to_markdown(args.query, results, args.md, args.threshold, args.count)
+        export_to_markdown(args.query, results, args.md,
+                           args.threshold, args.count)
 
 
 if __name__ == "__main__":
