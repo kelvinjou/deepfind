@@ -23,6 +23,8 @@ function App() {
   const [embeddingResults, setEmbeddingResults] = useState<any[]>([])
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false)
 
+  const isSearchDisabled = folders.length === 0 || folders.some(f => f.selected && !f.processed);
+
   const handleSelectFolder = async () => {
     const result = await window.electronAPI.openDirectory()
     if (!result.canceled) {
@@ -65,7 +67,7 @@ function App() {
 
   const getQueryResults = async () => {
     const selectedFolderPaths = folders
-      .filter((folder) => folder.selected)
+      .filter((folder) => folder.selected && folder.processed)
       .map((folder) => folder.path)
 
     const params = new URLSearchParams({
@@ -101,24 +103,24 @@ function App() {
 
       console.log("Files from directory:", files)
 
-      const mockResults = {
-        results: files
-          .filter((file: FileInfo) => !file.isDirectory)
-          .map((file: FileInfo) => ({
-            file_name: file.name,
-            file_path: `${testDir}/${file.name}`,
-            content: "Test content preview...",
-            similarity_score: Math.random()
-          }))
-      }
+      // const mockResults = {
+      //   results: files
+      //     .filter((file: FileInfo) => !file.isDirectory)
+      //     .map((file: FileInfo) => ({
+      //       file_name: file.name,
+      //       file_path: `${testDir}/${file.name}`,
+      //       content: "Test content preview...",
+      //       similarity_score: Math.random()
+      //     }))
+      // }
 
       // Testing
-      console.log("Mock results:", mockResults)
-      setResults(mockResults)
+      // console.log("Mock results:", mockResults)
+      // setResults(mockResults)
 
       // Original API call
-      // const data = await getQueryResults()
-      // setResults(data)
+      const data = await getQueryResults()
+      setResults(data)
     } catch (err: any) {
       console.error("Search error:", err)
       setError(err.message ?? "Search failed")
@@ -185,6 +187,8 @@ function App() {
 
       // Kind of inefficient but shoot me okay
       setFolders(folders.map((folder) => (folder.path == processedFolderPath) ? { path: folder.path, selected: folder.selected, processed: true } : folder ))
+      console.log(folders.map(folder => folder.processed)) // for debugging
+
     })
     .catch((err) => {
       console.log(err)
@@ -215,7 +219,7 @@ function App() {
           placeholder={embeddingsGenerated ? "Search" : "Generate embeddings first to search"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          // disabled={!embeddingsGenerated}
+          disabled={isSearchDisabled}
           onKeyDown={handleKeyDown}
           className="flex-1 border-1 shadow-none focus-visible:ring-0"
         />
@@ -262,7 +266,9 @@ function App() {
                           }`}
                         >
                           <button
-                            onClick={() => toggleFolderSelection(index)}
+                            onClick={() => {
+                              toggleFolderSelection(index);
+                            }}
                             className="flex flex-1 items-center gap-2 hover:opacity-80"
                           >
                             <div
