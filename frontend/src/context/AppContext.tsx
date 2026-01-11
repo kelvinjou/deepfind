@@ -264,6 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleSearch = async () => {
     setLoading(true);
+    setSelectedFile(null);
 
     try {
       const data = await getQueryResults();
