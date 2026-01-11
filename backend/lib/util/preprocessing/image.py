@@ -2,7 +2,7 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from PIL import Image
 import torch
 
-from util.embedding import get_embedding
+from lib.util.embedding import get_embedding
 
 # this is the entry point
 
