@@ -115,10 +115,17 @@ def process_pdf_file(file_path: str, file_props, client):
     )
     return file_id
 
-
+# 
 # insertions into db
-def push_to_db(folder_path: str):
+def push_to_db(folder_path: str) -> dict:
+    """Process files from folder and return summary with failed files.
+    
+    Returns:
+        dict: Contains processed count, failed files list with error messages, and status
+    """
     client = get_supabase_client()
+    failed_files = []
+    processed_count = 0
     
     filtered_files = get_valid_file_from_folder(
         # THIS IS CURRENTLY HARD-CODED, CHANGE THIS LATER
@@ -132,19 +139,24 @@ def push_to_db(folder_path: str):
     
     if not filtered_files:
         print("⚠️  No files found")
-        return
+        return {
+            "status": "success",
+            "processed_count": 0,
+            "failed_files": [],
+            "message": "No files found to process"
+        }
 
     for file_path in filtered_files:
-        # Get file properties
-        file_props = getFileProperties(file_path)
-        
-        # Check if file already exists (by hash)
-        if client.file_exists(file_hash=file_props.file_hash):
-            print(f"Skipping {file_path} - already exists in database")
-            continue
-        
-        # Process based on file type
         try:
+            # Get file properties
+            file_props = getFileProperties(file_path)
+            
+            # Check if file already exists (by hash)
+            if client.file_exists(file_hash=file_props.file_hash):
+                print(f"Skipping {file_path} - already exists in database")
+                continue
+            
+            # Process based on file type
             if file_props.mime_type == 'application/pdf':
                 file_id = process_pdf_file(file_path, file_props, client)
             elif file_props.mime_type in ('image/jpeg', 'image/png'):
@@ -153,8 +165,21 @@ def push_to_db(folder_path: str):
                 file_id = process_text_file(file_path, file_props, client)
             
             print(f"✓ Successfully processed {file_path} (ID: {file_id})")
+            processed_count += 1
         except Exception as e:
-            print(f"✗ Failed to process {file_path}: {e}")
+            error_msg = str(e)
+            print(f"✗ Failed to process {file_path}: {error_msg}")
+            failed_files.append({
+                "file_path": file_path,
+                "error": error_msg
+            })
+    
+    return {
+        "status": "success" if not failed_files else "partial",
+        "processed_count": processed_count,
+        "failed_files": failed_files,
+        "total_attempted": len(filtered_files)
+    }
 
 
 if __name__ == "__main__":
