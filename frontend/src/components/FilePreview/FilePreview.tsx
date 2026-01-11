@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { X, Sparkles } from "lucide-react";
 import { FilePreviewProps } from "./types";
 import { useEffect, useState } from "react";
+import { useApp } from "@/context/AppContext";
 
 function getFileType(filename: string): "text" | "image" | "pdf" | "audio" {
   const ext = filename.split(".").pop()?.toLowerCase() || "";
@@ -19,10 +20,24 @@ function getFileType(filename: string): "text" | "image" | "pdf" | "audio" {
 }
 
 export function FilePreview({ file, onClose }: FilePreviewProps) {
+  const { summarizeFile, isAgentRunning } = useApp();
   const fileType = getFileType(file.name);
   const [dataUrl, setDataUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
+
+  const handleSummarize = () => {
+    // For text files, we can pass content directly
+    // For other file types, we pass the file path and let the backend extract content
+    if (fileType === "text" && file.content) {
+      summarizeFile(file.name, file.path, file.content);
+    } else {
+      summarizeFile(file.name, file.path);
+    }
+  };
+
+  // Can summarize all file types
+  const canSummarize = true;
 
   // Load binary files as data URLs via IPC
   useEffect(() => {
@@ -53,10 +68,23 @@ export function FilePreview({ file, onClose }: FilePreviewProps) {
     <div className="w-full max-w-4xl">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-semibold text-zinc-800">{file.name}</h2>
-        <Button onClick={onClose} variant="outline" size="sm">
-          <X className="h-4 w-4 mr-2" />
-          Close
-        </Button>
+        <div className="flex items-center gap-2">
+          {canSummarize && (
+            <Button
+              onClick={handleSummarize}
+              variant="default"
+              size="sm"
+              disabled={isAgentRunning}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Summarize
+            </Button>
+          )}
+          <Button onClick={onClose} variant="outline" size="sm">
+            <X className="h-4 w-4 mr-2" />
+            Close
+          </Button>
+        </div>
       </div>
       <p className="text-sm text-zinc-500 mb-4">{file.path}</p>
       <div className="rounded-lg border bg-white p-6 shadow-sm">

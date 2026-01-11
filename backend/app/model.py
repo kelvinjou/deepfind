@@ -84,3 +84,14 @@ class CopyDirectoryRequest(BaseModel):
 class RecentFilesRequest(BaseModel):
     directory: str
     count: int
+
+
+class AgentRequest(BaseModel):
+    prompt: str
+    match_count: Optional[int] = 10
+
+
+class SummarizeFileRequest(BaseModel):
+    fileName: str
+    filePath: Optional[str] = None
+    content: Optional[str] = None

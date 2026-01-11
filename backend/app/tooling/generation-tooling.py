@@ -2,10 +2,33 @@
 
 from typing import Dict, List, Generator
 
-from generation import generate_text
+try:
+    from generation import generate_text, generate_text_stream
+except ImportError:
+    from .generation import generate_text, generate_text_stream
 
 def summarize_text(text: str) -> str:
     return generate_text(f"Summarize the following text:\n\n{text}")
+
+
+def summarize_text_stream(text: str) -> Generator[str, None, None]:
+    """Stream a summary of the given text."""
+    prompt = f"Summarize the following text:\n\n{text}"
+    for chunk in generate_text_stream(prompt):
+        yield chunk
+
+
+def synthesize_information_stream(document_text: List[tuple]) -> Generator[str, None, None]:
+    """Stream a synthesis of multiple documents."""
+    combined_text = "\n\n".join([f"Document: {name}\nContent: {content}" for name, content in document_text])
+    prompt = (
+        f"Synthesize the following documents into a coherent summary. "
+        f"Cite the documents used in the synthesis by their name.\n\n"
+        f"{combined_text}\n\n"
+        f"Provide a clear and concise summary."
+    )
+    for chunk in generate_text_stream(prompt):
+        yield chunk
 
 def generate_file_name(
     content: str,
