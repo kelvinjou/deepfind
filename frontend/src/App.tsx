@@ -1,10 +1,16 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
-import { Search, Plus, ChevronRight, ChevronLeft, Folder } from "lucide-react"
+import { Search, Plus, ChevronRight, ChevronLeft, Folder, Check, X } from "lucide-react"
+import { FileInfo } from "./types/electron"
+
+interface FolderData {
+  path: string
+  selected: boolean
+}
 
 function App() {
-  const [selectedFolders, setSelectedFolders] = useState<string[]>([])
+  const [folders, setFolders] = useState<FolderData[]>([])
   const [query, setQuery] = useState("")
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
@@ -18,7 +24,7 @@ function App() {
       const folderPath = result.filePaths[0]
       const files = await window.electronAPI.readDirectory(folderPath)
       console.log(files)
-      setSelectedFolders((prev) => [...prev, folderPath])
+      setFolders((prev) => [...prev, { path: folderPath, selected: true }])
 
       // Automatically submit the folder for processing
       try {
@@ -40,10 +46,31 @@ function App() {
     }
   }
 
+  const toggleFolderSelection = (index: number) => {
+    setFolders((prev) =>
+      prev.map((folder, i) =>
+        i === index ? { ...folder, selected: !folder.selected } : folder
+      )
+    )
+  }
+
+  const removeFolder = (index: number) => {
+    setFolders((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const getQueryResults = async () => {
+    const selectedFolderPaths = folders
+      .filter((folder) => folder.selected)
+      .map((folder) => folder.path)
+
     const params = new URLSearchParams({
       q: query,
     })
+
+    // Add selected folder paths to the query if any are selected
+    if (selectedFolderPaths.length > 0) {
+      params.append("folders", JSON.stringify(selectedFolderPaths))
+    }
 
     const response = await fetch(`http://localhost:7777/query/?${params.toString()}`,
       {
@@ -63,13 +90,38 @@ function App() {
     setError(null)
 
     try {
-      const data = await getQueryResults()
-      setResults(data)
+      // Test: Display files from test_files/text
+      const testDir = "/Users/baileysay/projects/file-finder/backend/test_files/text"
+      const files = await window.electronAPI.readDirectory(testDir)
+
+      console.log("Files from directory:", files)
+
+      const mockResults = {
+        results: files
+          .filter((file: FileInfo) => !file.isDirectory)
+          .map((file: FileInfo) => ({
+            file_name: file.name,
+            file_path: `${testDir}/${file.name}`,
+            content: "Test content preview...",
+            similarity_score: Math.random()
+          }))
+      }
+
+      console.log("Mock results:", mockResults)
+      setResults(mockResults)
+
+      // Original API call (commented out for testing)
+      // const data = await getQueryResults()
+      // setResults(data)
     } catch (err: any) {
       setError(err.message ?? "Search failed")
     } finally {
       setLoading(false)
     }
+  }
+
+  const getSelectedFolders = () => {
+    return folders.filter((folder) => folder.selected).map((folder) => folder.path)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -96,7 +148,7 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <div
-          className={`border-r bg-white transition-all duration-300 ${
+          className={`relative border-r bg-white transition-all duration-300 ${
             sidebarOpen ? "w-64" : "w-12"
           }`}
         >
@@ -104,7 +156,7 @@ function App() {
             {/* Sidebar Toggle */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="flex items-center justify-center border-b p-3 hover:bg-zinc-50"
+              className="absolute right-0 top-0 flex items-center justify-center border-b border-l p-3 bg-white hover:bg-zinc-50 z-10 rounded-bl-lg"
             >
               {sidebarOpen ? (
                 <ChevronLeft className="h-5 w-5 text-zinc-600" />
@@ -115,30 +167,69 @@ function App() {
 
             {/* Sidebar Content */}
             {sidebarOpen && (
-              <div className="flex-1 overflow-y-auto p-4">
-                <h2 className="mb-4 text-sm font-semibold text-zinc-700">Folders</h2>
-                <div className="space-y-2">
-                  {selectedFolders.length === 0 ? (
-                    <p className="text-sm text-zinc-500">No folders added yet</p>
-                  ) : (
-                    selectedFolders.map((folder, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 rounded-lg border bg-white p-3 text-sm hover:bg-zinc-50"
-                      >
-                        <Folder className="h-4 w-4 text-zinc-500" />
-                        <span className="truncate text-zinc-700">{folder.split('/').pop()}</span>
-                      </div>
-                    ))
-                  )}
+              <>
+                <div className="flex-1 overflow-y-auto p-4 pt-16">
+                  <h2 className="mb-4 text-sm font-semibold text-zinc-700">Folders</h2>
+                  <div className="space-y-2">
+                    {folders.length === 0 ? (
+                      <p className="text-sm text-zinc-500">No folders added yet</p>
+                    ) : (
+                      folders.map((folder, index) => (
+                        <div
+                          key={index}
+                          className={`flex w-full items-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
+                            folder.selected
+                              ? "border-blue-500 bg-blue-50"
+                              : "bg-white"
+                          }`}
+                        >
+                          <button
+                            onClick={() => toggleFolderSelection(index)}
+                            className="flex flex-1 items-center gap-2 hover:opacity-80"
+                          >
+                            <div
+                              className={`flex h-5 w-5 items-center justify-center rounded border ${
+                                folder.selected
+                                  ? "border-blue-500 bg-blue-500"
+                                  : "border-zinc-300 bg-white"
+                              }`}
+                            >
+                              {folder.selected && <Check className="h-3 w-3 text-white" />}
+                            </div>
+                            <Folder className={`h-4 w-4 ${folder.selected ? "text-blue-600" : "text-zinc-500"}`} />
+                            <span className={`truncate ${folder.selected ? "text-blue-900" : "text-zinc-700"}`}>
+                              {folder.path.split('/').pop()}
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => removeFolder(index)}
+                            className="flex items-center justify-center rounded p-1 hover:bg-red-100 transition-colors"
+                            title="Remove folder"
+                          >
+                            <X className="h-4 w-4 text-zinc-400 hover:text-red-600" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
+                <div className="border-t p-4">
+                  <Button
+                    onClick={handleSelectFolder}
+                    className="w-full flex items-center justify-center gap-2"
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Folder
+                  </Button>
+                </div>
+              </>
             )}
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex flex-1 flex-col items-center justify-center p-8">
+        <div className={`flex flex-1 flex-col items-center p-8 overflow-y-auto ${!results && !loading && !error ? 'justify-center' : 'justify-start'}`}>
           {!results && !loading && !error && (
             <div className="text-center">
               <Button
@@ -149,7 +240,7 @@ function App() {
                 <Plus className="h-5 w-5" />
                 Add new folder
               </Button>
-              <p className="mt-4 text-sm text-zinc-500">
+              <p className="mt-4 text-center text-sm text-zinc-500">
                 Add folders to search through your files
               </p>
             </div>
@@ -170,7 +261,7 @@ function App() {
           {results && (
             <div className="w-full max-w-4xl">
               <h2 className="mb-4 text-xl font-semibold text-zinc-800">Search Results</h2>
-              <div className="space-y-3">
+              <div className="space-y-3 pb-8">
                 {results.results && results.results.length > 0 ? (
                   results.results.map((result: any, index: number) => (
                     <div
