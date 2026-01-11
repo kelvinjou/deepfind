@@ -23,6 +23,23 @@ export interface SearchResult {
 
 export interface SearchResults {
   results: SearchResult[];
+  action?: string;
+  confirm_required?: boolean;
+  pending_actions?: {
+    move_files?: PendingAction;
+    copy_files?: PendingAction;
+    tag_files?: PendingAction;
+  };
+  unresolved_files?: string[];
+  tag?: string;
+  tag_color?: number | null;
+  tagged_count?: number;
+  taggable_count?: number;
+}
+
+export interface PendingAction {
+  action: string;
+  params: Record<string, unknown>;
 }
 
 export interface EmbeddingResult {

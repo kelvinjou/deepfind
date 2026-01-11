@@ -1,7 +1,9 @@
 from app.model import (
     StoreAssetRequest,
     DeleteFolderRequest,
+    ExecuteActionRequest,
 )
+from app.tooling import don_tools
 from lib.constants import DEFAULT_MATCH_THRESHOLD
 from lib.supabase.util import get_supabase_client
 from lib.util.db_process import push_to_db
@@ -11,6 +13,8 @@ from typing import Optional
 from pathlib import Path
 from collections import defaultdict
 import json
+import os
+import re
 
 
 app = FastAPI()
@@ -97,6 +101,85 @@ async def query_files(
         except json.JSONDecodeError:
             print("Failed to parse archived_folders JSON, ignoring filter")
 
+    move_intent = _extract_transfer_intent(query_text, "move")
+    copy_intent = _extract_transfer_intent(query_text, "copy")
+    transfer_intent = move_intent or copy_intent
+    if transfer_intent:
+        file_paths, unresolved = _resolve_file_paths(
+            transfer_intent["file_paths"], client
+        )
+        files = [
+            {"file_name": os.path.basename(path), "file_path": path}
+            for path in file_paths
+        ]
+        confirm_required = len(file_paths) > 0
+        pending_actions = None
+        if confirm_required:
+            pending_actions = {
+                "move_files": {
+                    "action": "move_files",
+                    "params": {
+                        "file_paths": file_paths,
+                        "target_directory": transfer_intent["target_directory"],
+                    },
+                },
+                "copy_files": {
+                    "action": "copy_files",
+                    "params": {
+                        "file_paths": file_paths,
+                        "target_directory": transfer_intent["target_directory"],
+                    },
+                },
+            }
+        return {
+            "query": query_text,
+            "threshold": match_threshold,
+            "maxResults": match_count,
+            "found": len(files),
+            "results": files,
+            "action": "move_files" if move_intent else "copy_files",
+            "confirm_required": confirm_required,
+            "pending_actions": pending_actions,
+            "unresolved_files": unresolved,
+        }
+
+    tag_intent = _extract_tag_intent(query_text)
+    if tag_intent:
+        results = client.query_files(
+            query=tag_intent["query"],
+            match_threshold=match_threshold,
+            match_count=match_count,
+            archived_folders=archived_folder_list,
+        )
+        file_paths = _unique_file_paths(results)
+        pending_actions = None
+        confirm_required = False
+        if file_paths:
+            pending_actions = {
+                "tag_files": {
+                    "action": "tag_files",
+                    "params": {
+                        "file_paths": file_paths,
+                        "tag": tag_intent["tag"],
+                        "color": None,
+                    },
+                },
+            }
+            confirm_required = True
+        return {
+            "query": query_text,
+            "threshold": match_threshold,
+            "maxResults": match_count,
+            "found": len(results),
+            "results": results,
+            "action": "tag_files",
+            "confirm_required": confirm_required,
+            "pending_actions": pending_actions,
+            "tag": tag_intent["tag"],
+            "tag_color": None,
+            "taggable_count": len(file_paths),
+        }
+
     # Standard semantic search
     results = client.query_files(
         query=query_text,
@@ -111,7 +194,9 @@ async def query_files(
         "threshold": match_threshold,
         "maxResults": match_count,
         "found": len(results),
-        "results": results
+        "results": results,
+        "action": "search_files",
+        "confirm_required": False,
     }
 
 
@@ -137,6 +222,69 @@ async def delete_folder(payload: DeleteFolderRequest) -> dict:
         "folderPath": folder_path,
         "deletedCount": deleted_count
     }
+
+
+@app.post("/actions/execute")
+async def execute_action(payload: ExecuteActionRequest) -> dict:
+    action = payload.action
+    params = payload.params or {}
+
+    if action == "move_files":
+        file_paths = params.get("file_paths", [])
+        target_directory = params.get("target_directory")
+        if not file_paths or not target_directory:
+            return {
+                "status": "error",
+                "message": "file_paths and target_directory are required",
+                "action": action,
+            }
+        don_tools.move_files_to_directory(file_paths, target_directory)
+        return {
+            "status": "success",
+            "action": action,
+            "movedCount": len(file_paths),
+            "targetDirectory": target_directory,
+        }
+
+    if action == "copy_files":
+        file_paths = params.get("file_paths", [])
+        target_directory = params.get("target_directory")
+        if not file_paths or not target_directory:
+            return {
+                "status": "error",
+                "message": "file_paths and target_directory are required",
+                "action": action,
+            }
+        don_tools.make_copy_of_files(file_paths, target_directory)
+        return {
+            "status": "success",
+            "action": action,
+            "copiedCount": len(file_paths),
+            "targetDirectory": target_directory,
+        }
+
+    if action == "tag_files":
+        file_paths = params.get("file_paths", [])
+        tag = params.get("tag")
+        color = params.get("color", 0)
+        if not file_paths or not tag:
+            return {
+                "status": "error",
+                "message": "file_paths and tag are required",
+                "action": action,
+            }
+        if color is None:
+            color = 0
+        don_tools.tag_files(file_paths, tag, color)
+        return {
+            "status": "success",
+            "action": action,
+            "tag": tag,
+            "color": color,
+            "taggedCount": len(file_paths),
+        }
+
+    return {"status": "error", "message": "Unknown action", "action": action}
 
 
 @app.get("/folders/", tags=["folders"])
@@ -177,4 +325,125 @@ async def get_folders_with_files() -> dict:
         "totalFolders": len(folders),
         "totalFiles": len(files),
         "folders": folders
+    }
+
+
+def _extract_transfer_intent(query_text: str, action_word: str) -> dict | None:
+    lowered = query_text.lower()
+    if action_word not in lowered:
+        return None
+
+    marker = " to "
+    if marker not in lowered:
+        return None
+
+    before, after = query_text.rsplit(marker, 1)
+    before = before.strip()
+    after = after.strip().strip('"').strip("'")
+    if not re.match(rf"^{action_word}\b", before, flags=re.IGNORECASE):
+        return None
+
+    before = re.sub(
+        rf"^{action_word}[\s,]+(files?\s+)?",
+        "",
+        before,
+        flags=re.IGNORECASE,
+    )
+    raw_paths = [part.strip().strip('"').strip("'") for part in before.split(",")]
+    file_paths = [path for path in raw_paths if path]
+    if not file_paths or not after:
+        return None
+
+    return {
+        "file_paths": file_paths,
+        "target_directory": after,
+    }
+
+
+def _resolve_file_paths(raw_paths: list[str], client) -> tuple[list[str], list[str]]:
+    resolved = []
+    unresolved = []
+    filenames = []
+
+    for path in raw_paths:
+        if os.path.isabs(path):
+            resolved.append(path)
+        else:
+            filenames.append(os.path.basename(path))
+
+    name_to_paths = defaultdict(list)
+    if filenames:
+        files = client.get_all_files()
+        for item in files:
+            name = item.get("file_name")
+            path = item.get("file_path")
+            if name and path:
+                name_to_paths[name].append(path)
+
+        for name in filenames:
+            matches = name_to_paths.get(name, [])
+            if matches:
+                resolved.extend(matches)
+            else:
+                unresolved.append(name)
+
+    seen = set()
+    unique_resolved = []
+    for path in resolved:
+        if path not in seen:
+            seen.add(path)
+            unique_resolved.append(path)
+
+    return unique_resolved, unresolved
+
+
+def _unique_file_paths(results: list[dict]) -> list[str]:
+    seen = set()
+    file_paths = []
+    for item in results:
+        path = item.get("file_path")
+        if path and path not in seen:
+            seen.add(path)
+            file_paths.append(path)
+    return file_paths
+
+
+def _extract_tag_intent(query_text: str) -> dict | None:
+    lowered = query_text.lower()
+    if "tag" not in lowered:
+        return None
+
+    color_map = {
+        "gray": 1,
+        "grey": 1,
+        "green": 2,
+        "purple": 3,
+        "blue": 4,
+        "yellow": 5,
+        "red": 6,
+        "orange": 7,
+    }
+
+    match = re.search(r"\btag(?:\s+all)?\s+(?P<subject>.+?)\s+files\b", lowered)
+    if not match:
+        return None
+
+    subject = match.group("subject").strip()
+    subject_clean = re.sub(r"\brelated\b", "", subject).strip()
+
+    color = 0
+    color_name = None
+    for name, value in color_map.items():
+        if re.search(rf"\\b{name}\\b", subject_clean):
+            color = value
+            color_name = name
+            subject_clean = re.sub(rf"\\b{name}\\b", "", subject_clean).strip()
+            break
+
+    tag = subject_clean or "tagged"
+    return {
+        "tag": tag,
+        "color": color,
+        "color_name": color_name,
+        "query": subject_clean or subject,
     }
