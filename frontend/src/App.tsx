@@ -81,7 +81,7 @@ function App() {
   }
 
   const handleSearch = async () => {
-    if (!query.trim() || !embeddingsGenerated) return
+    // if (!query.trim() || !embeddingsGenerated) return
 
     setLoading(true)
     setError(null)
