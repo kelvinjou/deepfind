@@ -16,8 +16,15 @@ RETURNS TABLE (
   mime_type text,
   similarity float
 )
-LANGUAGE sql STABLE
+LANGUAGE plpgsql STABLE
 AS $$
+BEGIN
+  RAISE LOG 'DEBUG: query_embedding dimensions check';
+  RAISE LOG 'DEBUG: archived_folders = %', archived_folders;
+  RAISE LOG 'DEBUG: match_threshold = %', match_threshold;
+  RAISE LOG 'DEBUG: match_count = %', match_count;
+
+  RETURN QUERY
   SELECT
     c.id AS chunk_id,
     c.file_id,
@@ -40,4 +47,5 @@ AS $$
     )
   ORDER BY c.embedding <=> query_embedding ASC
   LIMIT match_count;
+END;
 $$;

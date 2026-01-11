@@ -236,10 +236,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const getQueryResults = async () => {
-    const selectedFolderPaths = folders
-      .filter((folder) => !folder.archived && folder.processed)
-      .map((folder) => folder.path);
-
     const archivedFolderPaths = folders
       .filter((folder) => folder.archived)
       .map((folder) => folder.path);
@@ -248,10 +244,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       query_text: query,
       match_count: matchCount.toString(),
     });
-
-    if (selectedFolderPaths.length > 0) {
-      params.append("folders", JSON.stringify(selectedFolderPaths));
-    }
 
     if (archivedFolderPaths.length > 0) {
       params.append("archived_folders", JSON.stringify(archivedFolderPaths));

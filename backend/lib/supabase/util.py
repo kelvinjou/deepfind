@@ -369,6 +369,8 @@ class SupabaseClient:
             List of matching chunk records
         """
 
+        print(query, match_threshold, match_count, archived_folders)
+
         # Generate embedding for query
         query_embedding = get_embedding(query)
 
