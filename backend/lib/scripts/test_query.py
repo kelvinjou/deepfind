@@ -7,6 +7,7 @@ Usage:
     python -m scripts.test_query "your search query" --md output.md
 """
 
+from lib.constants import DEFAULT_MATCH_THRESHOLD
 from lib.supabase.util import get_supabase_client
 from lib.util.embedding import get_embedding
 import json
@@ -17,7 +18,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def query_chunks(query: str, match_threshold: float = 0.3, match_count: int = 10) -> list[dict]:
+def query_chunks(query: str, match_threshold: float = DEFAULT_MATCH_THRESHOLD, match_count: int = 10) -> list[dict]:
     """
     Query the database for matching chunks.
 
@@ -141,7 +142,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Query the database and optionally export to JSON or Markdown")
     parser.add_argument("query", type=str, help="Search query")
-    parser.add_argument("--threshold", type=float, default=0.3,
+    parser.add_argument("--threshold", type=float, default=DEFAULT_MATCH_THRESHOLD,
                         help="Minimum similarity threshold (0-1)")
     parser.add_argument("--count", type=int, default=10,
                         help="Maximum number of results")

@@ -2,6 +2,7 @@ from app.model import (
     StoreAssetRequest,
     DeleteFolderRequest,
 )
+from lib.constants import DEFAULT_MATCH_THRESHOLD
 from lib.supabase.util import get_supabase_client
 from lib.util.db_process import push_to_db
 from fastapi import FastAPI
@@ -68,6 +69,7 @@ async def post_directory_path(payload: StoreAssetRequest) -> dict:
 async def query_files(
     query_text: str,
     match_count: int = 10,
+    threshold: float = DEFAULT_MATCH_THRESHOLD,
     archived_folders: Optional[str] = None,
 ) -> dict:
     """Query files using semantic search.
@@ -75,14 +77,14 @@ async def query_files(
     Args:
         query_text: The search query text
         match_count: Maximum number of results to return
+        threshold: Minimum similarity score (0-1), defaults to DEFAULT_MATCH_THRESHOLD
         archived_folders: JSON-encoded array of folder paths to exclude from search
-        folders: JSON-encoded array of folder paths to filter results to
 
     Returns:
         Dictionary with query results and metadata
     """
     print(f"Query received: {query_text}")
-    match_threshold = 0.3
+    match_threshold = threshold
     client = get_supabase_client()
 
     # Parse archived folders JSON array if provided

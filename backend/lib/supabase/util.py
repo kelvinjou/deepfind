@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from lib.constants import DEFAULT_MATCH_THRESHOLD
 from lib.util.embedding import get_embedding
 
 load_dotenv()
@@ -357,7 +358,7 @@ class SupabaseClient:
 
     # query function given text prompt
 
-    def query_files(self, query: str, match_threshold: float = 0.3, match_count: int = 10, archived_folders: list[str] = None) -> list[dict]:
+    def query_files(self, query: str, match_threshold: float = DEFAULT_MATCH_THRESHOLD, match_count: int = 10, archived_folders: list[str] = None) -> list[dict]:
         """Query the database for matching file chunks, excluding archived folders.
 
         Args:

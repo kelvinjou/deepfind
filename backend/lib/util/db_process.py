@@ -136,6 +136,10 @@ def process_pdf_file(file_path: str, file_props, client):
     # Already has chunk_index and chunk_metadata (page info)
     chunks_data = chunks
 
+    # Prevent PDFs with no extractable text from being inserted
+    if not chunks_data:
+        raise ValueError("PDF contains no extractable text")
+
     # Extract content strings for embeddings
     chunk_texts = [chunk["content"] for chunk in chunks]
     embeddings = get_embeddings(chunk_texts)
