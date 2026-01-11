@@ -12,19 +12,18 @@ Options:
     --folder    Path to folder to process (default: test_files/test_suite(all_types))
 """
 
+from lib.supabase.util import get_supabase_client
+from lib.util.preprocessing.audio import transcribe_audio
+from lib.util.preprocessing.pdf import extract_pdf_text
+from lib.util.folder_extraction import get_valid_file_from_folder, getFileProperties, read_text_file_content
+from lib.util.embedding import get_embeddings
+from lib.util.preprocessing.semantic_chunking import semantic_chunk_text
 import sys
 import argparse
 from pathlib import Path
 
 # Add backend directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from app.semantic_chunking import semantic_chunk_text
-from util.embedding import get_embeddings
-from util.folder_extraction import get_valid_file_from_folder, getFileProperties, read_text_file_content
-from util.pdf import extract_pdf_text
-from util.audio import transcribe_audio
-from lib.supabase.util import get_supabase_client
 
 
 # Supported MIME types and their processors
@@ -189,7 +188,8 @@ def seed_database(folder_path: str, clear_existing: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed the database with test files")
+    parser = argparse.ArgumentParser(
+        description="Seed the database with test files")
     parser.add_argument(
         "--clear",
         action="store_true",

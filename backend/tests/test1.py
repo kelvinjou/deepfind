@@ -1,10 +1,11 @@
-from util.audio import transcribe_audio
-from util.embedding import get_embeddings
+from lib.util.preprocessing.audio import transcribe_audio
+from lib.util.embedding import get_embeddings
 from pydantic import FilePath
 
 # 1. Transcribe audio
 print("=== Transcribing audio ===")
-test_file = FilePath("/Users/anarang/Projects/file-finder-prototype/backend/test_files/audio/test1.ogg")
+test_file = FilePath(
+    "/Users/anarang/Projects/file-finder-prototype/backend/test_files/audio/test1.ogg")
 chunks = transcribe_audio(test_file)
 print(f"Created {len(chunks)} chunks\n")
 
