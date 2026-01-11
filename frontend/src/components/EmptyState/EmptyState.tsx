@@ -1,25 +1,19 @@
-import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
-import { useApp } from "@/context/AppContext"
-import { EmbeddingResults } from "@/components/EmbeddingResults/EmbeddingResults"
+import { useApp } from "@/context/AppContext";
+import { EmbeddingResults } from "@/components/EmbeddingResults/EmbeddingResults";
 
 export function EmptyState() {
-  const { handleSelectFolder, embeddingResults } = useApp()
+  const { embeddingResults } = useApp();
 
   return (
     <div className="text-center">
-      <Button
-        onClick={handleSelectFolder}
-        className="flex items-center gap-2 text-lg"
-        size="lg"
-      >
-        <Plus className="h-5 w-5" />
-        Add new folder
-      </Button>
+      <h2 className="text-2xl font-semibold text-zinc-800">
+        Welcome, start by adding some folders!
+      </h2>
       <p className="mt-4 text-center text-sm text-zinc-500">
-        Add folders to search through your files
+        Add and upload folders in the sidebar to begin searcing through your
+        documents.
       </p>
       <EmbeddingResults embeddingResults={embeddingResults} />
     </div>
-  )
+  );
 }

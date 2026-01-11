@@ -205,6 +205,41 @@ class SupabaseClient:
         )
         return len(result.data)
 
+    def delete_files_by_folder(self, folder_path: str) -> int:
+        """
+        Delete all files and their chunks from a specific folder.
+
+        Deletes all files whose file_path starts with the given folder_path.
+        Chunks are automatically deleted due to CASCADE on foreign key.
+
+        Args:
+            folder_path: Root folder path to delete files from
+
+        Returns:
+            Number of files deleted
+        """
+        # Get all files that start with the folder path
+        files_result = (
+            self._client.table("files")
+            .select("id, file_path")
+            .like("file_path", f"{folder_path}%")
+            .execute()
+        )
+
+        if not files_result.data:
+            return 0
+
+        # Delete all matching files (chunks cascade)
+        file_ids = [f["id"] for f in files_result.data]
+        delete_result = (
+            self._client.table("files")
+            .delete()
+            .in_("id", file_ids)
+            .execute()
+        )
+
+        return len(delete_result.data)
+
     # -------------------------------------------------------------------------
     # Chunk Operations
     # -------------------------------------------------------------------------
@@ -322,13 +357,14 @@ class SupabaseClient:
 
     # query function given text prompt
 
-    def query_files(self, query: str, match_threshold: float = 0.3, match_count: int = 10) -> list[dict]:
-        """Query the database for matching file chunks.
+    def query_files(self, query: str, match_threshold: float = 0.3, match_count: int = 10, archived_folders: list[str] = None) -> list[dict]:
+        """Query the database for matching file chunks, excluding archived folders.
 
         Args:
             query: Natural language search query
             match_threshold: Minimum similarity score (0-1)
             match_count: Maximum number of results
+            archived_folders: List of folder paths to exclude from results (filtering done in DB)
         Returns:
             List of matching chunk records
         """
@@ -336,13 +372,15 @@ class SupabaseClient:
         # Generate embedding for query
         query_embedding = get_embedding(query)
 
-        # Call the database function
+        # Call the database function with archived folders filter
+        # The SQL function will filter out any files whose path starts with archived folders
         result = self._client.rpc(
             "query_file_chunks",
             {
                 "query_embedding": query_embedding,
                 "match_threshold": match_threshold,
                 "match_count": match_count,
+                "archived_folders": archived_folders or [],
             }
         ).execute()
 

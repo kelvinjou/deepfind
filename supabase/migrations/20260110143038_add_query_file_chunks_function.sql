@@ -1,10 +1,11 @@
 -- Function to perform semantic search on chunks using vector similarity
-create or replace function query_file_chunks (
-  query_embedding public.vector(512),
+CREATE OR REPLACE FUNCTION query_file_chunks (
+  query_embedding vector(768),
   match_threshold float default 0.5,
-  match_count int default 10
+  match_count int default 10,
+  archived_folders text[] default '{}'
 )
-returns table (
+RETURNS TABLE (
   chunk_id uuid,
   file_id uuid,
   chunk_index int,
@@ -15,10 +16,10 @@ returns table (
   mime_type text,
   similarity float
 )
-language sql stable
-as $$
-  select
-    c.id as chunk_id,
+LANGUAGE sql STABLE
+AS $$
+  SELECT
+    c.id AS chunk_id,
     c.file_id,
     c.chunk_index,
     c.content,
@@ -26,11 +27,17 @@ as $$
     f.file_name,
     f.file_path,
     f.mime_type,
-    1 - (c.embedding <=> query_embedding) as similarity
-  from chunks c
-  join files f on c.file_id = f.id
-  where c.embedding is not null
-    and 1 - (c.embedding <=> query_embedding) > match_threshold
-  order by c.embedding <=> query_embedding asc
-  limit match_count;
+    1 - (c.embedding <=> query_embedding) AS similarity
+  FROM chunks c
+  JOIN files f ON c.file_id = f.id
+  WHERE c.embedding IS NOT NULL
+    AND 1 - (c.embedding <=> query_embedding) > match_threshold
+    -- Exclude files from archived folders
+    AND NOT EXISTS (
+      SELECT 1
+      FROM unnest(archived_folders) AS af(folder)
+      WHERE f.file_path LIKE af.folder || '%'
+    )
+  ORDER BY c.embedding <=> query_embedding ASC
+  LIMIT match_count;
 $$;

@@ -1,40 +1,37 @@
-import { Folder, Check, X } from "lucide-react"
-import { FolderItemProps } from "./types"
+import { Folder, X, CheckCircle2 } from "lucide-react";
+import { FolderItemProps } from "./types";
+import { Button } from "../ui/button";
+import { useApp } from "@/context/AppContext";
 
-export function FolderItem({ folder, index, onToggle, onRemove }: FolderItemProps) {
+export function FolderItem({ folder, index, onRemove }: FolderItemProps) {
+  const { isGeneratingEmbeddings } = useApp();
   return (
     <div
-      className={`flex w-full items-center gap-2 rounded-lg border p-3 text-sm transition-colors ${
-        folder.selected
-          ? "border-blue-500 bg-blue-50"
-          : "bg-white"
-      }`}
+      className={` flex w-full items-center justify-between gap-2 rounded-lg border p-2 pl-4 pr-2 text-sm transition-colors`}
     >
-      <button
-        onClick={() => onToggle(index)}
-        className="flex flex-1 items-center gap-2 hover:opacity-80"
-      >
-        <div
-          className={`flex h-5 w-5 items-center justify-center rounded border ${
-            folder.selected
-              ? "border-blue-500 bg-blue-500"
-              : "border-zinc-300 bg-white"
+      <div className="flex items-center gap-2">
+        {folder.processed && (
+          <div title="Processed">
+            <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+          </div>
+        )}
+        <Folder
+          className={`h-4 w-4 ${
+            folder.selected ? "text-blue-600" : "text-zinc-500"
           }`}
-        >
-          {folder.selected && <Check className="h-3 w-3 text-white" />}
-        </div>
-        <Folder className={`h-4 w-4 ${folder.selected ? "text-blue-600" : "text-zinc-500"}`} />
-        <span className={`truncate ${folder.selected ? "text-blue-900" : "text-zinc-700"}`}>
-          {folder.path.split('/').pop()}
-        </span>
-      </button>
-      <button
+        />
+        <span className={``}>{folder.name}</span>
+      </div>
+      <Button
         onClick={() => onRemove(index)}
-        className="flex items-center justify-center rounded p-1 hover:bg-red-100 transition-colors"
+        className="flex items-center justify-center rounded p-1 group hover:bg-red-100 transition-colors"
         title="Remove folder"
+        variant={"ghost"}
+        size={null}
+        disabled={isGeneratingEmbeddings}
       >
-        <X className="h-4 w-4 text-zinc-400 hover:text-red-600" />
-      </button>
+        <X className="h-4 w-4 text-zinc-400 group-hover:text-red-600" />
+      </Button>
     </div>
-  )
+  );
 }
