@@ -4,6 +4,7 @@ import {
   useState,
   ReactNode,
   useEffect,
+  useRef,
 } from "react";
 import {
   FolderData,
@@ -13,6 +14,12 @@ import {
   PendingAction,
 } from "@/types/app";
 import { toast } from "sonner";
+
+interface AgentMetadata {
+  topic?: string;
+  documentsFound?: number;
+  fileType?: string;
+}
 
 interface AppContextType {
   // Folder state
@@ -45,6 +52,16 @@ interface AppContextType {
   isGeneratingEmbeddings: boolean;
   setIsGeneratingEmbeddings: React.Dispatch<React.SetStateAction<boolean>>;
 
+  // Agent state
+  agentOutput: string;
+  setAgentOutput: React.Dispatch<React.SetStateAction<string>>;
+  agentMetadata: AgentMetadata | null;
+  setAgentMetadata: React.Dispatch<React.SetStateAction<AgentMetadata | null>>;
+  isAgentRunning: boolean;
+  setIsAgentRunning: React.Dispatch<React.SetStateAction<boolean>>;
+  showOutputPanel: boolean;
+  setShowOutputPanel: React.Dispatch<React.SetStateAction<boolean>>;
+
   // Computed values
   isSearchDisabled: boolean;
   hasUnprocessedSelectedFolders: boolean;
@@ -58,6 +75,8 @@ interface AppContextType {
   handleFileClick: (filePath: string, fileName: string) => Promise<void>;
   handleCloseFile: () => void;
   preprocess: () => Promise<void>;
+  closeOutputPanel: () => void;
+  summarizeFile: (fileName: string, filePath: string, content?: string) => Promise<void>;
   confirmPendingAction: (action?: PendingAction) => Promise<void>;
 }
 
@@ -76,6 +95,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
+
+  // Agent state
+  const [agentOutput, setAgentOutput] = useState("");
+  const [agentMetadata, setAgentMetadata] = useState<AgentMetadata | null>(null);
+  const [isAgentRunning, setIsAgentRunning] = useState(false);
+  const [showOutputPanel, setShowOutputPanel] = useState(false);
+  const agentAbortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch initial folders from backend on mount
   useEffect(() => {
@@ -264,9 +290,121 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return response.json();
   };
 
+  // Detect if the query is asking for summarization
+  const detectSummarizeIntent = (queryText: string): boolean => {
+    const summarizeKeywords = ["summarize", "summary", "synthesize", "what do the documents say"];
+    const lowerQuery = queryText.toLowerCase();
+    return summarizeKeywords.some(keyword => lowerQuery.includes(keyword));
+  };
+
+  // Run agent task with SSE streaming
+  const runAgentTask = async (prompt: string) => {
+    // Cancel any existing request
+    if (agentAbortControllerRef.current) {
+      agentAbortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    agentAbortControllerRef.current = abortController;
+
+    setIsAgentRunning(true);
+    setAgentOutput("");
+    setAgentMetadata(null);
+    setShowOutputPanel(true);
+    setSelectedFile(null);
+    setResults(null);
+
+    try {
+      const response = await fetch("http://localhost:7777/agent/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt, match_count: matchCount }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Check if this is a streaming response
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("text/event-stream")) {
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (!reader) {
+          throw new Error("No response body");
+        }
+
+        let streamDone = false;
+        while (!streamDone) {
+          const { done, value } = await reader.read();
+          if (done) {
+            streamDone = true;
+            continue;
+          }
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (data.metadata) {
+                  setAgentMetadata(data.metadata);
+                } else if (data.content) {
+                  setAgentOutput(prev => prev + data.content);
+                } else if (data.done) {
+                  // Stream complete
+                }
+              } catch {
+                // Skip malformed JSON
+              }
+            }
+          }
+        }
+      } else {
+        // Non-streaming response (not an agent task)
+        const data = await response.json();
+        if (data.status === "not_agent_task") {
+          // Fall back to regular search
+          setShowOutputPanel(false);
+          const searchData = await getQueryResults();
+          setResults(searchData);
+        }
+      }
+    } catch (err: unknown) {
+      // Don't show error if request was aborted (user cancelled)
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log("Agent request cancelled");
+        return;
+      }
+      console.error("Agent error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Agent task failed";
+      toast.error(errorMessage, { richColors: true });
+    } finally {
+      setIsAgentRunning(false);
+      agentAbortControllerRef.current = null;
+    }
+  };
+
   const handleSearch = async () => {
     setLoading(true);
+    setSelectedFile(null);
 
+    // Check if this is a summarize request
+    if (detectSummarizeIntent(query)) {
+      setLoading(false);
+      await runAgentTask(query);
+      return;
+    }
+
+    // Regular search
+    setShowOutputPanel(false);
     try {
       const data = await getQueryResults();
       setResults(data);
@@ -276,6 +414,100 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast.error(errorMessage, { richColors: true });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const closeOutputPanel = () => {
+    // Abort any ongoing agent request
+    if (agentAbortControllerRef.current) {
+      agentAbortControllerRef.current.abort();
+      agentAbortControllerRef.current = null;
+    }
+    setShowOutputPanel(false);
+    setAgentOutput("");
+    setAgentMetadata(null);
+    setIsAgentRunning(false);
+  };
+
+  // Summarize a single file's content
+  const summarizeFile = async (fileName: string, filePath: string, content?: string) => {
+    // Cancel any existing request
+    if (agentAbortControllerRef.current) {
+      agentAbortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    agentAbortControllerRef.current = abortController;
+
+    setIsAgentRunning(true);
+    setAgentOutput("");
+    setAgentMetadata(null);
+    setShowOutputPanel(true);
+    setSelectedFile(null);
+
+    try {
+      const response = await fetch("http://localhost:7777/summarize-file/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileName, filePath, content }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      let streamDone = false;
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) {
+          streamDone = true;
+          continue;
+        }
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.metadata) {
+                setAgentMetadata({
+                  topic: `Summary of ${data.metadata.fileName}`,
+                  fileType: data.metadata.fileType
+                });
+              } else if (data.content) {
+                setAgentOutput(prev => prev + data.content);
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+    } catch (err: unknown) {
+      // Don't show error if request was aborted (user cancelled)
+      if (err instanceof Error && err.name === "AbortError") {
+        console.log("Summarize request cancelled");
+        return;
+      }
+      console.error("Summarize error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to summarize file";
+      toast.error(errorMessage, { richColors: true });
+    } finally {
+      setIsAgentRunning(false);
+      agentAbortControllerRef.current = null;
     }
   };
 
@@ -475,6 +707,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setEmbeddingResults,
     isGeneratingEmbeddings,
     setIsGeneratingEmbeddings,
+    agentOutput,
+    setAgentOutput,
+    agentMetadata,
+    setAgentMetadata,
+    isAgentRunning,
+    setIsAgentRunning,
+    showOutputPanel,
+    setShowOutputPanel,
     isSearchDisabled,
     hasUnprocessedSelectedFolders,
     handleSelectFolder,
@@ -485,6 +725,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     handleFileClick,
     handleCloseFile,
     preprocess,
+    closeOutputPanel,
+    summarizeFile,
     confirmPendingAction,
   };
 

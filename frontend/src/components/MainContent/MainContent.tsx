@@ -2,6 +2,7 @@ import { useApp } from "@/context/AppContext";
 import { EmptyState } from "@/components/EmptyState/EmptyState";
 import { FilePreview } from "@/components/FilePreview/FilePreview";
 import { SearchResults } from "@/components/SearchResults/SearchResults";
+import { OutputPanel } from "@/components/OutputPanel/OutputPanel";
 
 export function MainContent() {
   const {
@@ -10,10 +11,11 @@ export function MainContent() {
     selectedFile,
     handleFileClick,
     handleCloseFile,
+    showOutputPanel,
     confirmPendingAction,
   } = useApp();
 
-  const showEmptyState = !results && !loading;
+  const showEmptyState = !results && !loading && !showOutputPanel;
 
   return (
     <div
@@ -23,7 +25,9 @@ export function MainContent() {
     >
       {showEmptyState && <EmptyState />}
 
-      {selectedFile ? (
+      {showOutputPanel ? (
+        <OutputPanel />
+      ) : selectedFile ? (
         <FilePreview file={selectedFile} onClose={handleCloseFile} />
       ) : (
         results && (

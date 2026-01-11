@@ -1,12 +1,50 @@
-import { Folder, X, CheckCircle2, ChevronDown } from "lucide-react";
+import {
+  Folder,
+  X,
+  CheckCircle2,
+  ChevronDown,
+  FileText,
+  FileAudio,
+  Image,
+  FileType,
+  File,
+} from "lucide-react";
 import { useState } from "react";
 import { FolderItemProps } from "./types";
 import { Button } from "../ui/button";
 import { useApp } from "@/context/AppContext";
 
+const textExtensions = [".txt", ".md", ".json", ".xml", ".csv", ".html", ".css", ".js", ".ts", ".tsx", ".jsx", ".py", ".java", ".c", ".cpp", ".h", ".rb", ".go", ".rs", ".swift", ".kt", ".sh", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".log"];
+const audioExtensions = [".mp3", ".wav", ".flac", ".aac", ".ogg", ".m4a", ".wma", ".aiff"];
+const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg", ".ico", ".tiff", ".heic"];
+const pdfExtensions = [".pdf"];
+
+function getFileIcon(fileName: string) {
+  const ext = fileName.toLowerCase().slice(fileName.lastIndexOf("."));
+
+  if (textExtensions.includes(ext)) {
+    return <FileText className="h-3 w-3 text-blue-500 shrink-0" />;
+  }
+  if (audioExtensions.includes(ext)) {
+    return <FileAudio className="h-3 w-3 text-purple-500 shrink-0" />;
+  }
+  if (imageExtensions.includes(ext)) {
+    return <Image className="h-3 w-3 text-green-500 shrink-0" />;
+  }
+  if (pdfExtensions.includes(ext)) {
+    return <FileType className="h-3 w-3 text-red-500 shrink-0" />;
+  }
+  return <File className="h-3 w-3 text-zinc-400 shrink-0" />;
+}
+
 export function FolderItem({ folder, onRemove }: FolderItemProps) {
-  const { isGeneratingEmbeddings } = useApp();
+  const { isGeneratingEmbeddings, handleFileClick } = useApp();
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleFileItemClick = (fileName: string) => {
+    const filePath = `${folder.path}/${fileName}`;
+    handleFileClick(filePath, fileName);
+  };
 
   return (
     <div className="w-full">
@@ -66,12 +104,14 @@ export function FolderItem({ folder, onRemove }: FolderItemProps) {
         <div className="border border-t-0 border-zinc-200 rounded-b-lg bg-zinc-50 p-3 ml-2 mr-2 mb-1">
           <div className="space-y-1">
             {folder.files.map((file) => (
-              <div
+              <button
                 key={file}
-                className="text-xs text-zinc-700 flex items-center gap-2 py-1 px-2 rounded hover:bg-zinc-200 transition-colors"
+                onClick={() => handleFileItemClick(file)}
+                className="w-full text-left text-xs text-zinc-700 flex items-center gap-2 py-1 px-2 rounded hover:bg-zinc-200 cursor-pointer transition-colors"
               >
+                {getFileIcon(file)}
                 <span className="truncate">{file}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
