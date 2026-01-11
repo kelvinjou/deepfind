@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useState } from "react"
-import { Search, Plus, ChevronRight, ChevronLeft, Folder, Check, X } from "lucide-react"
+import { Search, Plus, ChevronRight, ChevronLeft, Folder, Check, X, Sparkles } from "lucide-react"
 import { FileInfo } from "./types/electron"
 
 interface FolderData {
   path: string
   selected: boolean
+  processed: boolean
 }
 
 function App() {
@@ -25,7 +26,7 @@ function App() {
       const folderPath = result.filePaths[0]
       const files = await window.electronAPI.readDirectory(folderPath)
       console.log(files)
-      setFolders((prev) => [...prev, { path: folderPath, selected: true }])
+      setFolders((prev) => [...prev, { path: folderPath, selected: true, processed: false }])
 
       // Automatically submit the folder for processing
       try {
@@ -92,7 +93,7 @@ function App() {
 
     try {
       // Test: Display files from test_files/text
-      const testDir = "/Users/baileysay/projects/file-finder/backend/test_files/image"
+      const testDir = "/Users/baileysay/projects/file-finder/backend/test_files/text"
       const files = await window.electronAPI.readDirectory(testDir)
 
       console.log("Files from directory:", files)
@@ -108,10 +109,11 @@ function App() {
           }))
       }
 
+      // Testing
       console.log("Mock results:", mockResults)
       setResults(mockResults)
 
-      // Original API call (commented out for testing)
+      // Original API call
       // const data = await getQueryResults()
       // setResults(data)
     } catch (err: any) {
@@ -121,8 +123,12 @@ function App() {
     }
   }
 
-  const getSelectedFolders = () => {
+  const getSelectedFoldersPaths = () => {
     return folders.filter((folder) => folder.selected).map((folder) => folder.path)
+  }
+
+  const getSelectedFolders = () => {
+    return folders.filter((folder) => folder.selected)
   }
 
   const handleFileClick = async (filePath: string, fileName: string) => {
@@ -148,6 +154,40 @@ function App() {
     }
   }
 
+  const preprocess = async () => {
+
+    // TODO: While preprocessing, add a visual indicator to the button and disable it probably
+    // TODO: While preprocessing, add visual indicators to the folders
+
+    // Note: if nothing is selected, get everything
+    // Positive and negative filter?
+
+    let selectedFolders = getSelectedFolders()
+    if (selectedFolders.length == 0) selectedFolders = folders
+    const folder = selectedFolders[0]
+
+    fetch('http://localhost:5173/dir/',
+      {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json', // Tells server to expect JSON
+        },
+        body: JSON.stringify({ folderPath: folder.path }), // Converts JS object to JSON string
+      }
+    )
+    .then(response => response.json())
+    .then((data) => {
+      const processedFolderPath = data.folderPath
+
+      // Kind of inefficient but shoot me okay
+      setFolders(folders.map((folder) => (folder.path == processedFolderPath) ? { path: folder.path, selected: folder.selected, processed: true } : folder ))
+    })
+    .catch((err) => {
+      console.log(err)
+    })
+
+  }
+
   const handleCloseFile = () => {
     setSelectedFile(null)
   }
@@ -162,14 +202,19 @@ function App() {
     <div className="flex h-screen flex-col bg-zinc-50">
       {/* Top Search Bar */}
       <div className="flex items-center gap-3 border-b bg-white px-6 py-4">
-        <Search className="h-5 w-5 text-zinc-400" />
+        <Button onClick={() => {
+            preprocess()
+        }}>
+          <Sparkles></Sparkles>
+        </Button>
         <Input
           placeholder="Search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="flex-1 border-0 shadow-none focus-visible:ring-0"
+          className="flex-1 border-1 shadow-none focus-visible:ring-0"
         />
+        <Search className="h-5 w-5 text-zinc-400" />
       </div>
 
       {/* Main Layout with Sidebar */}
