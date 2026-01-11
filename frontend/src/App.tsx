@@ -20,6 +20,7 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<{ path: string; content: string; name: string } | null>(null)
   const [embeddingsGenerated, setEmbeddingsGenerated] = useState(false)
   const [embeddingResults, setEmbeddingResults] = useState<any[]>([])
+  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false)
 
   const handleSelectFolder = async () => {
     const result = await window.electronAPI.openDirectory()
@@ -39,7 +40,7 @@ function App() {
       return
     }
 
-    setLoading(true)
+    setIsGeneratingEmbeddings(true)
     setError(null)
     setEmbeddingResults([])
 
@@ -66,7 +67,7 @@ function App() {
       console.error("Error:", error)
       setError(error.message ?? "Failed to generate embeddings")
     } finally {
-      setLoading(false)
+      setIsGeneratingEmbeddings(false)
     }
   }
 
@@ -299,9 +300,9 @@ function App() {
             </div>
           )}
 
-          {loading && (
+          {(loading || isGeneratingEmbeddings) && (
             <div className="text-center">
-              <p className="text-lg text-zinc-600">Searching...</p>
+              <p className="text-lg text-zinc-600">{isGeneratingEmbeddings ? "Embedding..." : "Searching..."}</p>
             </div>
           )}
 
