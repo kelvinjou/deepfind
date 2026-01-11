@@ -30,9 +30,7 @@ function App() {
       const files = await window.electronAPI.readDirectory(folderPath)
       console.log(files)
       setFolders((prev) => [...prev, { path: folderPath, selected: true, processed: false }])
-//      setFolders((prev) => [...prev, { path: folderPath, selected: true }])
-//    }
-//  }
+    }
 //
 //  const handleGenerateEmbeddings = async () => {
 //    const selectedFolders = folders.filter((folder) => folder.selected)
@@ -42,36 +40,8 @@ function App() {
 //      return
 //    }
 
-    setIsGeneratingEmbeddings(true)
-    setError(null)
-    setEmbeddingResults([])
-
-    try {
-      const results: any[] = []
-      for (const folder of selectedFolders) {
-        const response = await fetch("http://localhost:7777/dir/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folderPath: folder.path })
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log("Success:", data)
-        results.push({ folder: folder.path, data })
-      }
-      setEmbeddingResults(results)
-      setEmbeddingsGenerated(true)
-    } catch (error: any) {
-      console.error("Error:", error)
-      setError(error.message ?? "Failed to generate embeddings")
-    } finally {
-      setIsGeneratingEmbeddings(false)
-    }
   }
+  
 
   const toggleFolderSelection = (index: number) => {
     setFolders((prev) =>
@@ -344,15 +314,6 @@ function App() {
                 Add folders to search through your files
               </p>
 
-              <Button
-                onClick={handleGenerateEmbeddings}
-                className="flex items-center gap-2 text-lg"
-                size="lg"
-              >
-                <Plus className="h-5 w-5" />
-                Generate Embeddings
-              </Button>
-
               {embeddingResults.length > 0 && (
                 <div className="mt-6 w-full max-w-2xl text-left">
                   <h3 className="text-sm font-semibold text-zinc-700 mb-2">Embedding Results</h3>
@@ -432,7 +393,7 @@ function App() {
       </div>
     </div>
   )
-  }
 }
 
-export default App()
+
+export default App
