@@ -26,6 +26,14 @@ function App() {
     const result = await window.electronAPI.openDirectory()
     if (!result.canceled) {
       const folderPath = result.filePaths[0]
+      
+      // Check if folder already exists
+      if (folders.some((folder) => folder.path === folderPath)) {
+        setError("Folder already added")
+        setTimeout(() => setError(null), 2000)
+        return
+      }
+      
       const files = await window.electronAPI.readDirectory(folderPath)
       console.log(files)
       setFolders((prev) => [...prev, { path: folderPath, selected: true }])
@@ -288,12 +296,35 @@ function App() {
               </Button>
 
               {embeddingResults.length > 0 && (
-                <div className="mt-6 w-full max-w-2xl text-left">
-                  <h3 className="text-sm font-semibold text-zinc-700 mb-2">Embedding Results</h3>
-                  <div className="rounded-lg border bg-white p-4 shadow-sm overflow-auto max-h-64">
-                    <pre className="text-xs text-zinc-600 whitespace-pre-wrap">
-                      {JSON.stringify(embeddingResults, null, 2)}
-                    </pre>
+                <div className="mt-6 w-full max-w-md text-left">
+                  <h3 className="text-sm font-semibold text-zinc-700 mb-3">Embedding Results</h3>
+                  <div className="rounded-lg border bg-white p-4 shadow-sm space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-3 w-3 rounded-full ${embeddingResults[0]?.data?.status === 'success' ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-sm font-medium text-zinc-700">
+                        Status: {embeddingResults[0]?.data?.status === 'success' ? 'Success' : 'Failed'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-md bg-zinc-50 p-3">
+                        <p className="text-zinc-500 text-xs">Processed</p>
+                        <p className="text-xl font-semibold text-zinc-800">{embeddingResults[0]?.data?.processedCount ?? 0}</p>
+                      </div>
+                      <div className="rounded-md bg-zinc-50 p-3">
+                        <p className="text-zinc-500 text-xs">Total Attempted</p>
+                        <p className="text-xl font-semibold text-zinc-800">{embeddingResults[0]?.data?.totalAttempted ?? 0}</p>
+                      </div>
+                    </div>
+                    {embeddingResults[0]?.data?.failedFiles?.length > 0 && (
+                      <div className="rounded-md bg-red-50 p-3">
+                        <p className="text-red-600 text-xs font-medium mb-1">Failed Files ({embeddingResults[0]?.data?.failedFiles?.length})</p>
+                        <ul className="text-xs text-red-700 space-y-1">
+                          {embeddingResults[0]?.data?.failedFiles?.map((file: string, i: number) => (
+                            <li key={i} className="truncate">• {file}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
