@@ -75,24 +75,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleSelectFolder = async () => {
     const result = await window.electronAPI.openDirectory();
     if (!result.canceled) {
-      const folderPath = result.filePaths[0];
+      const newFolders = result.filePaths.filter((folderPath) => {
+        // Skip if folder already added
+        return !folders.some((folder) => folder.path === folderPath);
+      });
 
-      if (folders.some((folder) => folder.path === folderPath)) {
-        toast.error("Folder already added", { richColors: true });
+      if (newFolders.length === 0) {
+        toast.error("All selected folders have already been added", {
+          richColors: true,
+        });
         return;
       }
 
-      await window.electronAPI.readDirectory(folderPath);
-      setFolders((prev) => [
-        ...prev,
-        {
-          path: folderPath,
-          selected: true,
-          processed: false,
-          archived: false,
-          name: folderPath.split("/").pop() || folderPath,
-        },
-      ]);
+      // Validate all folders can be read
+      for (const folderPath of newFolders) {
+        try {
+          await window.electronAPI.readDirectory(folderPath);
+        } catch (err) {
+          console.error(`Failed to read folder: ${folderPath}`, err);
+          toast.error(`Failed to read folder: ${folderPath}`, {
+            richColors: true,
+          });
+          return;
+        }
+      }
+
+      // Add all valid folders to state
+      const foldersToAdd = newFolders.map((folderPath) => ({
+        path: folderPath,
+        selected: true,
+        processed: false,
+        archived: false,
+        name: folderPath.split("/").pop() || folderPath,
+      }));
+
+      setFolders((prev) => [...prev, ...foldersToAdd]);
+
+      toast.success(
+        `${newFolders.length} folder${
+          newFolders.length !== 1 ? "s" : ""
+        } added`,
+        { richColors: true }
+      );
     }
   };
 
@@ -193,6 +217,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         method: "GET",
       }
     );
+    console.log(response);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -238,15 +263,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const preprocess = async () => {
-    // Get selected folders that haven't been processed yet (excluding archived)
-    let unprocessedFolders = folders.filter((f) => !f.archived && !f.processed);
+    // Get all unprocessed folders (excluding archived)
+    const unprocessedFolders = folders.filter(
+      (f) => !f.archived && !f.processed
+    );
 
-    // If no folders are selected, get all unprocessed folders (excluding archived)
-    if (unprocessedFolders.length === 0) {
-      unprocessedFolders = folders.filter((f) => !f.archived && !f.processed);
-    }
-
-    // If there are no unprocessed folders at all, do nothing
+    // If there are no unprocessed folders, do nothing
     if (unprocessedFolders.length === 0) {
       toast.error("All selected folders have already been processed", {
         richColors: true,
@@ -254,23 +276,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Process the first unprocessed folder
-    const folder = unprocessedFolders[0];
     setIsGeneratingEmbeddings(true);
+    const folderPaths = unprocessedFolders.map((f) => f.path);
 
     fetch("http://localhost:7777/dir/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ folderPath: folder.path }),
+      body: JSON.stringify({ folderPath: folderPaths }),
     })
       .then((response) => response.json())
       .then((data) => {
-        const processedFolderPath = data.folderPath;
+        // Mark all processed folders
+        const processedPaths = new Set(data.folderPaths);
         setFolders((prevFolders) =>
           prevFolders.map((f) =>
-            f.path === processedFolderPath
+            processedPaths.has(f.path)
               ? {
                   path: f.path,
                   processed: true,
@@ -281,13 +303,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           )
         );
         setIsGeneratingEmbeddings(false);
-        toast.success(`Finished processing folder: ${folder.name}`, {
-          richColors: true,
-        });
+        toast.success(
+          `Finished processing ${unprocessedFolders.length} folder${
+            unprocessedFolders.length !== 1 ? "s" : ""
+          }`,
+          { richColors: true }
+        );
       })
       .catch((err) => {
-        console.error("Error processing folder:", err);
-        toast.error("Failed to process folder", { richColors: true });
+        console.error("Error processing folders:", err);
+        toast.error("Failed to process folders", { richColors: true });
         setIsGeneratingEmbeddings(false);
       });
   };

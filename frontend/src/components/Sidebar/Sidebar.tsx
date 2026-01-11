@@ -83,6 +83,15 @@ export function Sidebar() {
             </div>
             <div className="flex flex-col gap-2 border-t p-4">
               <Button
+                onClick={handleSelectFolder}
+                disabled={isGeneratingEmbeddings}
+                className="w-full flex items-center justify-center gap-2"
+                variant="outline"
+              >
+                <Plus className="h-4 w-4" />
+                Add Folder
+              </Button>
+              <Button
                 onClick={preprocess}
                 disabled={
                   !hasUnprocessedSelectedFolders || isGeneratingEmbeddings
@@ -96,15 +105,6 @@ export function Sidebar() {
               >
                 <Upload className="h-4 w-4" />
                 {isGeneratingEmbeddings ? "Processing..." : "Process Folders"}
-              </Button>
-              <Button
-                onClick={handleSelectFolder}
-                disabled={isGeneratingEmbeddings}
-                className="w-full flex items-center justify-center gap-2"
-                variant="outline"
-              >
-                <Plus className="h-4 w-4" />
-                Add Folder
               </Button>
             </div>
           </>

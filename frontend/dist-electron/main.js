@@ -38,7 +38,7 @@ app.on("activate", () => {
 });
 ipcMain.handle("dialog:openDirectory", async () => {
   const result = await dialog.showOpenDialog({
-    properties: ["openDirectory"]
+    properties: ["openDirectory", "multiSelections"]
   });
   return result;
 });

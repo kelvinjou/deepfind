@@ -67,7 +67,7 @@ app.on("activate", () => {
 // IPC Handlers for file system operations
 ipcMain.handle("dialog:openDirectory", async () => {
   const result = await dialog.showOpenDialog({
-    properties: ["openDirectory"],
+    properties: ["openDirectory", "multiSelections"],
   });
   return result;
 });

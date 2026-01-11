@@ -33,19 +33,29 @@ async def read_root() -> dict:
 
 @app.post("/dir/")
 async def post_directory_path(payload: StoreAssetRequest) -> dict:
-    """Process files from a directory and return processing results.
+    """Process files from one or more directories and return processing results.
 
     Returns:
-        dict: Contains status, processed count, failed files list, and folder path
+        dict: Contains status, processed count, failed files list, and folder paths
     """
-    result = push_to_db(payload.folderPath)
+    folder_paths = payload.folderPath
+    results = []
 
+    for folder_path in folder_paths:
+        result = push_to_db(folder_path)
+        results.append({
+            "folderPath": folder_path,
+            "status": result["status"],
+            "processedCount": result["processed_count"],
+            "totalAttempted": result.get("total_attempted", 0),
+            "failedFiles": result["failed_files"]
+        })
+
+    # Return results for all processed folders
     return {
-        "folderPath": payload.folderPath,
-        "status": result["status"],
-        "processedCount": result["processed_count"],
-        "totalAttempted": result.get("total_attempted", 0),
-        "failedFiles": result["failed_files"]
+        "folderPaths": folder_paths,
+        "results": results,
+        "totalFolders": len(folder_paths)
     }
 
 
