@@ -1,7 +1,5 @@
-from lib.constants import SUPPORTED_MIME_TYPES
 from lib.util.preprocessing.image import generateImageCaption
 from lib.util.preprocessing.pdf import extract_pdf_text
-from lib.util.preprocessing.audio import transcribe_audio
 from lib.supabase.util import get_supabase_client
 from lib.util.folder_extraction import get_valid_file_from_folder, getFileProperties, read_text_file_content
 from lib.util.embedding import get_embeddings
@@ -9,17 +7,6 @@ from lib.util.preprocessing.semantic_chunking import semantic_chunk_text
 import sys
 from pathlib import Path
 from pydantic import FilePath
-
-# Audio MIME types
-AUDIO_MIME_TYPES = {
-    'audio/mpeg',
-    'audio/wav',
-    'audio/x-wav',
-    'audio/ogg',
-    'audio/flac',
-    'audio/mp4',
-    'audio/x-m4a',
-}
 
 # Add backend directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -55,38 +42,6 @@ def process_image_file(file_path: str, file_props, client):
         last_modified_at=file_props.last_modified,
         chunks=chunks_data,
         embeddings=embedding,
-        file_size=file_props.file_size,
-        metadata=metadata
-    )
-    return file_id
-
-
-def process_audio_file(file_path: str, file_props, client):
-    """Process an audio file: transcribe, chunk, generate embeddings, and insert to DB."""
-    chunks_data = transcribe_audio(file_path)
-
-    # Extract content for embedding generation
-    contents = [chunk["content"] for chunk in chunks_data]
-    embeddings = get_embeddings(contents)
-
-    # Add embeddings to chunks
-    for i, chunk in enumerate(chunks_data):
-        # Embeddings are already in the right shape
-        pass
-
-    metadata = {
-        "format": "audio",
-        "chunk_count": len(chunks_data)
-    }
-
-    file_id = client.process_file(
-        file_path=file_props.path,
-        file_name=file_props.file_name,
-        mime_type=file_props.mime_type,
-        file_hash=file_props.file_hash,
-        last_modified_at=file_props.last_modified,
-        chunks=chunks_data,
-        embeddings=embeddings,
         file_size=file_props.file_size,
         metadata=metadata
     )
@@ -177,7 +132,10 @@ def push_to_db(folder_path: str) -> dict:
     filtered_files = get_valid_file_from_folder(
         # THIS IS CURRENTLY HARD-CODED, CHANGE THIS LATER
         folder_path,
-        SUPPORTED_MIME_TYPES
+        {
+            # text, pdf, and image files
+            'text/plain', 'application/pdf', 'image/jpeg', 'image/png'
+        }
     )
 
     print(f"\n📁 Found {len(filtered_files)} files to process")
@@ -206,8 +164,6 @@ def push_to_db(folder_path: str) -> dict:
                 file_id = process_pdf_file(file_path, file_props, client)
             elif file_props.mime_type in ('image/jpeg', 'image/png'):
                 file_id = process_image_file(file_path, file_props, client)
-            elif file_props.mime_type in AUDIO_MIME_TYPES:
-                file_id = process_audio_file(file_path, file_props, client)
             else:
                 file_id = process_text_file(file_path, file_props, client)
 
