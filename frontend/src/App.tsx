@@ -207,7 +207,7 @@ function App() {
           placeholder={embeddingsGenerated ? "Search" : "Generate embeddings first to search"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          disabled={!embeddingsGenerated}
+          // disabled={!embeddingsGenerated}
           onKeyDown={handleKeyDown}
           className="flex-1 border-1 shadow-none focus-visible:ring-0"
         />
