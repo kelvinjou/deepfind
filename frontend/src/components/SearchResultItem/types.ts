@@ -7,4 +7,6 @@ export interface SearchResultItemProps {
   onApproveMove?: () => void
   showCopyApprove?: boolean
   onApproveCopy?: () => void
+  tagLabel?: string
+  tagColorClass?: string
 }

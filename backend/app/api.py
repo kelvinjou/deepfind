@@ -143,6 +143,43 @@ async def query_files(
             "unresolved_files": unresolved,
         }
 
+    tag_intent = _extract_tag_intent(query_text)
+    if tag_intent:
+        results = client.query_files(
+            query=tag_intent["query"],
+            match_threshold=match_threshold,
+            match_count=match_count,
+            archived_folders=archived_folder_list,
+        )
+        file_paths = _unique_file_paths(results)
+        pending_actions = None
+        confirm_required = False
+        if file_paths:
+            pending_actions = {
+                "tag_files": {
+                    "action": "tag_files",
+                    "params": {
+                        "file_paths": file_paths,
+                        "tag": tag_intent["tag"],
+                        "color": None,
+                    },
+                },
+            }
+            confirm_required = True
+        return {
+            "query": query_text,
+            "threshold": match_threshold,
+            "maxResults": match_count,
+            "found": len(results),
+            "results": results,
+            "action": "tag_files",
+            "confirm_required": confirm_required,
+            "pending_actions": pending_actions,
+            "tag": tag_intent["tag"],
+            "tag_color": None,
+            "taggable_count": len(file_paths),
+        }
+
     # Standard semantic search
     results = client.query_files(
         query=query_text,
@@ -224,6 +261,27 @@ async def execute_action(payload: ExecuteActionRequest) -> dict:
             "action": action,
             "copiedCount": len(file_paths),
             "targetDirectory": target_directory,
+        }
+
+    if action == "tag_files":
+        file_paths = params.get("file_paths", [])
+        tag = params.get("tag")
+        color = params.get("color", 0)
+        if not file_paths or not tag:
+            return {
+                "status": "error",
+                "message": "file_paths and tag are required",
+                "action": action,
+            }
+        if color is None:
+            color = 0
+        don_tools.tag_files(file_paths, tag, color)
+        return {
+            "status": "success",
+            "action": action,
+            "tag": tag,
+            "color": color,
+            "taggedCount": len(file_paths),
         }
 
     return {"status": "error", "message": "Unknown action", "action": action}
@@ -337,3 +395,55 @@ def _resolve_file_paths(raw_paths: list[str], client) -> tuple[list[str], list[s
             unique_resolved.append(path)
 
     return unique_resolved, unresolved
+
+
+def _unique_file_paths(results: list[dict]) -> list[str]:
+    seen = set()
+    file_paths = []
+    for item in results:
+        path = item.get("file_path")
+        if path and path not in seen:
+            seen.add(path)
+            file_paths.append(path)
+    return file_paths
+
+
+def _extract_tag_intent(query_text: str) -> dict | None:
+    lowered = query_text.lower()
+    if "tag" not in lowered:
+        return None
+
+    color_map = {
+        "gray": 1,
+        "grey": 1,
+        "green": 2,
+        "purple": 3,
+        "blue": 4,
+        "yellow": 5,
+        "red": 6,
+        "orange": 7,
+    }
+
+    match = re.search(r"\btag(?:\s+all)?\s+(?P<subject>.+?)\s+files\b", lowered)
+    if not match:
+        return None
+
+    subject = match.group("subject").strip()
+    subject_clean = re.sub(r"\brelated\b", "", subject).strip()
+
+    color = 0
+    color_name = None
+    for name, value in color_map.items():
+        if re.search(rf"\\b{name}\\b", subject_clean):
+            color = value
+            color_name = name
+            subject_clean = re.sub(rf"\\b{name}\\b", "", subject_clean).strip()
+            break
+
+    tag = subject_clean or "tagged"
+    return {
+        "tag": tag,
+        "color": color,
+        "color_name": color_name,
+        "query": subject_clean or subject,
+    }

@@ -75,9 +75,9 @@ def tag_files(file_paths: List[str], tag: str, color: int = 0) -> None:
             tags = [tag_with_color]
             plist_data = plistlib.dumps(tags, fmt=plistlib.FMT_BINARY)
             
-            # Set the tag using xattr
+            # Set the tag using xattr (hex-encoded binary plist)
             subprocess.run(
-                ["xattr", "-w", "com.apple.metadata:_kMDItemUserTags", plist_data.hex(), file_path],
+                ["xattr", "-wx", "com.apple.metadata:_kMDItemUserTags", plist_data.hex(), file_path],
                 check=True,
                 capture_output=True
             )
@@ -97,7 +97,7 @@ def get_files_with_tag(directory: str, tag: str) -> List[str]:
             file_path = os.path.join(root, file)
             try:
                 result = subprocess.run(
-                    ["xattr", "-p", "com.apple.metadata:_kMDItemUserTags", file_path],
+                    ["xattr", "-px", "com.apple.metadata:_kMDItemUserTags", file_path],
                     capture_output=True,
                     text=True
                 )

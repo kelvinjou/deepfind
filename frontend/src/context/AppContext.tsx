@@ -329,11 +329,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       toast.success("Action executed successfully", { richColors: true });
-      setResults((prev) =>
-        prev
-          ? { ...prev, confirm_required: false, pending_actions: undefined }
-          : prev
-      );
+      setResults((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const next = {
+          ...prev,
+          confirm_required: false,
+          pending_actions: undefined,
+        };
+        if (pendingAction.action === "tag_files") {
+          return {
+            ...next,
+            tag_color: data.color ?? prev.tag_color,
+            tagged_count: data.taggedCount ?? prev.tagged_count,
+          };
+        }
+        return next;
+      });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Action failed";
       toast.error(errorMessage, { richColors: true });

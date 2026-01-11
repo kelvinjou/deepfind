@@ -5,4 +5,5 @@ export interface SearchResultsProps {
   onFileClick: (filePath: string, fileName: string) => void
   onApproveMove?: () => void
   onApproveCopy?: () => void
+  onSelectTagColor?: (color: number) => void
 }

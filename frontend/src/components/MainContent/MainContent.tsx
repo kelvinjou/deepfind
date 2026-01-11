@@ -36,6 +36,17 @@ export function MainContent() {
             onApproveCopy={() =>
               confirmPendingAction(results.pending_actions?.copy_files)
             }
+            onSelectTagColor={(color) => {
+              const pending = results.pending_actions?.tag_files;
+              if (!pending) {
+                return;
+              }
+              const params = {
+                ...pending.params,
+                color,
+              };
+              confirmPendingAction({ action: pending.action, params });
+            }}
           />
         )
       )}
