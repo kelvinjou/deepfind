@@ -18,6 +18,7 @@ declare global {
       readDirectory: (dirPath: string) => Promise<FileInfo[]>
       getStats: (filePath: string) => Promise<FileStats>
       readFile: (filePath: string) => Promise<string>
+      readFileAsDataUrl: (filePath: string) => Promise<string>
     }
   }
 }

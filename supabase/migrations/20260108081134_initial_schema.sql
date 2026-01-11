@@ -6,7 +6,7 @@ create extension if not exists "vector" with schema "public";
     "file_id" uuid not null,
     "chunk_index" integer not null,
     "content" text not null,
-    "embedding" public.vector(512),
+    "embedding" public.vector(768),
     "chunk_metadata" jsonb not null,
     "created_at" timestamp without time zone default now()
       );
@@ -19,7 +19,6 @@ alter table "public"."chunks" enable row level security;
     "id" uuid not null default gen_random_uuid(),
     "file_path" text not null,
     "file_name" text not null,
-    "file_type" text not null,
     "file_size" bigint,
     "mime_type" text not null,
     "file_hash" text not null,
@@ -44,8 +43,6 @@ CREATE UNIQUE INDEX files_file_hash_key ON public.files USING btree (file_hash);
 CREATE UNIQUE INDEX files_pkey ON public.files USING btree (id);
 
 CREATE INDEX idx_chunks_file_id ON public.chunks USING btree (file_id);
-
-CREATE INDEX idx_files_type ON public.files USING btree (file_type);
 
 alter table "public"."chunks" add constraint "chunks_pkey" PRIMARY KEY using index "chunks_pkey";
 
@@ -142,5 +139,4 @@ grant trigger on table "public"."files" to "service_role";
 grant truncate on table "public"."files" to "service_role";
 
 grant update on table "public"."files" to "service_role";
-
 

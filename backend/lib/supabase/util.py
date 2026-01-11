@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from lib.constants import DEFAULT_MATCH_THRESHOLD
+from lib.util.embedding import get_embedding
 
 load_dotenv()
 
@@ -17,7 +19,8 @@ class SupabaseClient:
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_SECRET_KEY")
         if not url or not key:
-            raise ValueError("SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env")
+            raise ValueError(
+                "SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env")
         self._client: Client = create_client(url, key)
 
     @classmethod
@@ -203,6 +206,41 @@ class SupabaseClient:
         )
         return len(result.data)
 
+    def delete_files_by_folder(self, folder_path: str) -> int:
+        """
+        Delete all files and their chunks from a specific folder.
+
+        Deletes all files whose file_path starts with the given folder_path.
+        Chunks are automatically deleted due to CASCADE on foreign key.
+
+        Args:
+            folder_path: Root folder path to delete files from
+
+        Returns:
+            Number of files deleted
+        """
+        # Get all files that start with the folder path
+        files_result = (
+            self._client.table("files")
+            .select("id, file_path")
+            .like("file_path", f"{folder_path}%")
+            .execute()
+        )
+
+        if not files_result.data:
+            return 0
+
+        # Delete all matching files (chunks cascade)
+        file_ids = [f["id"] for f in files_result.data]
+        delete_result = (
+            self._client.table("files")
+            .delete()
+            .in_("id", file_ids)
+            .execute()
+        )
+
+        return len(delete_result.data)
+
     # -------------------------------------------------------------------------
     # Chunk Operations
     # -------------------------------------------------------------------------
@@ -225,7 +263,8 @@ class SupabaseClient:
             Number of chunks inserted
         """
         if len(chunks) != len(embeddings):
-            raise ValueError(f"Mismatch: {len(chunks)} chunks but {len(embeddings)} embeddings")
+            raise ValueError(
+                f"Mismatch: {len(chunks)} chunks but {len(embeddings)} embeddings")
 
         rows = [
             {
@@ -317,8 +356,42 @@ class SupabaseClient:
 
         return file_id
 
+    # query function given text prompt
+
+    def query_files(self, query: str, match_threshold: float = DEFAULT_MATCH_THRESHOLD, match_count: int = 10, archived_folders: list[str] = None) -> list[dict]:
+        """Query the database for matching file chunks, excluding archived folders.
+
+        Args:
+            query: Natural language search query
+            match_threshold: Minimum similarity score (0-1)
+            match_count: Maximum number of results
+            archived_folders: List of folder paths to exclude from results (filtering done in DB)
+        Returns:
+            List of matching chunk records
+        """
+
+        print(query, match_threshold, match_count, archived_folders)
+
+        # Generate embedding for query
+        query_embedding = get_embedding(query)
+
+        # Call the database function with archived folders filter
+        # The SQL function will filter out any files whose path starts with archived folders
+        result = self._client.rpc(
+            "query_file_chunks",
+            {
+                "query_embedding": query_embedding,
+                "match_threshold": match_threshold,
+                "match_count": match_count,
+                "archived_folders": archived_folders or [],
+            }
+        ).execute()
+
+        return result.data or []
 
 # Convenience function to get the singleton instance
+
+
 def get_supabase_client() -> SupabaseClient:
     """Get the singleton SupabaseClient instance."""
     return SupabaseClient.get_instance()

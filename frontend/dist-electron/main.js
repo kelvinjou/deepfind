@@ -1,9 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from "electron";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readdir, stat, readFile } from "node:fs/promises";
-createRequire(import.meta.url);
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
@@ -40,7 +38,7 @@ app.on("activate", () => {
 });
 ipcMain.handle("dialog:openDirectory", async () => {
   const result = await dialog.showOpenDialog({
-    properties: ["openDirectory"]
+    properties: ["openDirectory", "multiSelections"]
   });
   return result;
 });
@@ -80,6 +78,32 @@ ipcMain.handle("fs:readFile", async (_event, filePath) => {
     return content;
   } catch (error) {
     throw new Error(`Failed to read file: ${error}`);
+  }
+});
+ipcMain.handle("fs:readFileAsDataUrl", async (_event, filePath) => {
+  try {
+    const content = await readFile(filePath);
+    const base64 = content.toString("base64");
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".gif": "image/gif",
+      ".webp": "image/webp",
+      ".svg": "image/svg+xml",
+      ".pdf": "application/pdf",
+      ".mp3": "audio/mpeg",
+      ".wav": "audio/wav",
+      ".ogg": "audio/ogg",
+      ".m4a": "audio/mp4",
+      ".aac": "audio/aac",
+      ".flac": "audio/flac"
+    };
+    const mimeType = mimeTypes[ext] || "application/octet-stream";
+    return `data:${mimeType};base64,${base64}`;
+  } catch (error) {
+    throw new Error(`Failed to read file as data URL: ${error}`);
   }
 });
 app.whenReady().then(createWindow);
