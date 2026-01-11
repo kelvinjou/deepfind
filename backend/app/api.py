@@ -3,6 +3,8 @@ from lib.scripts.test_query import query_chunks
 from lib.util.db_process import push_to_db
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_mcp import FastApiMCP
+
 
 app = FastAPI()
 # do not change origins even if port # changes
@@ -21,9 +23,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
-
-db_service = None
-
 
 @app.get("/", tags=["root"])
 async def read_root() -> dict:
@@ -65,3 +64,12 @@ async def query_files(query_text: str) -> dict:
         "found": len(results),
         "results": results
     }
+
+
+# Create and mount the MCP server directly to your FastAPI app
+mcp = FastApiMCP(
+    app,
+    name="MCP Server",
+    description="Exposes API endpoints as MCP tools",
+)
+mcp.mount()
