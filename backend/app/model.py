@@ -17,6 +17,11 @@ class DeleteFolderRequest(BaseModel):
     folderPath: str
 
 
+class ExecuteActionRequest(BaseModel):
+    action: str
+    params: dict
+
+
 class MoveFilesRequest(BaseModel):
     filePaths: List[str]
     targetDirectory: str

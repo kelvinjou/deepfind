@@ -11,6 +11,7 @@ import {
   SelectedFile,
   SearchResults,
   EmbeddingResult,
+  PendingAction,
 } from "@/types/app";
 import { toast } from "sonner";
 
@@ -76,6 +77,7 @@ interface AppContextType {
   preprocess: () => Promise<void>;
   closeOutputPanel: () => void;
   summarizeFile: (fileName: string, filePath: string, content?: string) => Promise<void>;
+  confirmPendingAction: (action?: PendingAction) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -533,6 +535,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedFile(null);
   };
 
+  const confirmPendingAction = async (action?: PendingAction) => {
+    const pendingAction = action ?? results?.pending_actions?.move_files;
+    if (!pendingAction) {
+      toast.error("No pending action to confirm", { richColors: true });
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:7777/actions/execute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(pendingAction),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.status !== "success") {
+        throw new Error(data.message || "Action failed");
+      }
+
+      toast.success("Action executed successfully", { richColors: true });
+      setResults((prev) => {
+        if (!prev) {
+          return prev;
+        }
+        const next = {
+          ...prev,
+          confirm_required: false,
+          pending_actions: undefined,
+        };
+        if (pendingAction.action === "tag_files") {
+          return {
+            ...next,
+            tag_color: data.color ?? prev.tag_color,
+            tagged_count: data.taggedCount ?? prev.tagged_count,
+          };
+        }
+        return next;
+      });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Action failed";
+      toast.error(errorMessage, { richColors: true });
+    }
+  };
+
   const preprocess = async () => {
     // Get all unprocessed folders (excluding archived)
     const unprocessedFolders = folders.filter(
@@ -675,6 +727,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     preprocess,
     closeOutputPanel,
     summarizeFile,
+    confirmPendingAction,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

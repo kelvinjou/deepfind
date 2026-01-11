@@ -12,6 +12,7 @@ export function MainContent() {
     handleFileClick,
     handleCloseFile,
     showOutputPanel,
+    confirmPendingAction,
   } = useApp();
 
   const showEmptyState = !results && !loading && !showOutputPanel;
@@ -30,7 +31,27 @@ export function MainContent() {
         <FilePreview file={selectedFile} onClose={handleCloseFile} />
       ) : (
         results && (
-          <SearchResults results={results} onFileClick={handleFileClick} />
+          <SearchResults
+            results={results}
+            onFileClick={handleFileClick}
+            onApproveMove={() =>
+              confirmPendingAction(results.pending_actions?.move_files)
+            }
+            onApproveCopy={() =>
+              confirmPendingAction(results.pending_actions?.copy_files)
+            }
+            onSelectTagColor={(color) => {
+              const pending = results.pending_actions?.tag_files;
+              if (!pending) {
+                return;
+              }
+              const params = {
+                ...pending.params,
+                color,
+              };
+              confirmPendingAction({ action: pending.action, params });
+            }}
+          />
         )
       )}
     </div>
