@@ -2,18 +2,16 @@ import { Folder } from "lucide-react";
 import { SearchResultItemProps } from "./types";
 
 export function SearchResultItem({ result, onClick }: SearchResultItemProps) {
-  console.log(result);
-  
   // Format the last modified date
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return null;
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 

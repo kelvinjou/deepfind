@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ChevronRight, ChevronLeft, Plus, Upload } from "lucide-react";
+import { ChevronRight, ChevronLeft, Plus, Upload, Loader } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { FolderItem } from "@/components/FolderItem/FolderItem";
 import { ArchivedFolderItem } from "@/components/ArchivedFolderItem/ArchivedFolderItem";
@@ -119,7 +119,11 @@ export function Sidebar() {
                     : "default"
                 }
               >
-                <Upload className="h-4 w-4" />
+                {isGeneratingEmbeddings ? (
+                  <Loader className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
                 {isGeneratingEmbeddings ? "Processing..." : "Process Folders"}
               </Button>
             </div>

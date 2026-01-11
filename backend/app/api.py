@@ -4,6 +4,8 @@ from lib.util.db_process import push_to_db
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import json
+from pathlib import Path
+from collections import defaultdict
 
 app = FastAPI()
 # do not change origins even if port # changes
@@ -124,4 +126,45 @@ async def delete_folder(payload: DeleteFolderRequest) -> dict:
         "status": "success",
         "folderPath": folder_path,
         "deletedCount": deleted_count
+    }
+
+
+@app.get("/folders/", tags=["folders"])
+async def get_folders_with_files() -> dict:
+    """Fetch all files grouped by their parent directory (root folder).
+
+    Returns:
+        dict: Contains a list of folder groups, each with folder name, path, and files
+    """
+    client = get_supabase_client()
+    files = client.get_all_files()
+
+    # Group files by their parent directory path
+    folder_groups = defaultdict(lambda: {"files": []})
+
+    for file in files:
+        file_path = file.get("file_path")
+        if not file_path:
+            continue
+
+        # Get parent directory path and folder name
+        parent_path = str(Path(file_path).parent)
+        folder_name = Path(parent_path).name or parent_path
+
+        # Use parent path as key to avoid name collisions
+        folder_groups[parent_path]["name"] = folder_name
+        folder_groups[parent_path]["path"] = parent_path
+        folder_groups[parent_path]["files"].append(file)
+
+    # Convert to list and sort by folder name
+    folders = sorted(
+        [{"name": group["name"], "path": key, "fileCount": len(group["files"]), "files": group["files"]}
+         for key, group in folder_groups.items()],
+        key=lambda x: x["name"]
+    )
+
+    return {
+        "totalFolders": len(folders),
+        "totalFiles": len(files),
+        "folders": folders
     }

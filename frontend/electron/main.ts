@@ -114,4 +114,32 @@ ipcMain.handle("fs:readFile", async (_event, filePath: string) => {
   }
 });
 
+ipcMain.handle("fs:readFileAsDataUrl", async (_event, filePath: string) => {
+  try {
+    const content = await readFile(filePath);
+    const base64 = content.toString("base64");
+    // Determine MIME type from file extension
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes: Record<string, string> = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".gif": "image/gif",
+      ".webp": "image/webp",
+      ".svg": "image/svg+xml",
+      ".pdf": "application/pdf",
+      ".mp3": "audio/mpeg",
+      ".wav": "audio/wav",
+      ".ogg": "audio/ogg",
+      ".m4a": "audio/mp4",
+      ".aac": "audio/aac",
+      ".flac": "audio/flac",
+    };
+    const mimeType = mimeTypes[ext] || "application/octet-stream";
+    return `data:${mimeType};base64,${base64}`;
+  } catch (error) {
+    throw new Error(`Failed to read file as data URL: ${error}`);
+  }
+});
+
 app.whenReady().then(createWindow);

@@ -26,7 +26,7 @@ function App() {
   return (
     <AppProvider>
       <AppContent />
-      <Toaster position="top-center" />
+      <Toaster position="top-center" closeButton={true} />
     </AppProvider>
   );
 }

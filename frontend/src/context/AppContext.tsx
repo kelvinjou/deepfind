@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from "react";
 import {
   FolderData,
   SelectedFile,
@@ -69,6 +75,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
 
+  // Fetch initial folders from backend on mount
+  useEffect(() => {
+    const fetchInitialFolders = async () => {
+      try {
+        const response = await fetch("http://localhost:7777/folders/");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        // Transform API response to FolderData format
+        const initialFolders: FolderData[] = data.folders.map(
+          (folder: {
+            name: string;
+            path: string;
+            files: Array<{ file_name: string }>;
+          }) => ({
+            path: folder.path,
+            name: folder.name,
+            processed: true,
+            archived: false,
+            files: folder.files.map((f) => f.file_name),
+          })
+        );
+
+        setFolders(initialFolders);
+      } catch (err) {
+        console.error("Failed to fetch initial folders:", err);
+        // Don't show error toast on initial load - it's fine if backend isn't ready yet
+      }
+    };
+
+    fetchInitialFolders();
+  }, []);
+
   const isSearchDisabled = folders.length === 0;
 
   const hasUnprocessedSelectedFolders = folders.some(
@@ -84,7 +125,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
 
       if (newFolders.length === 0) {
-        toast.error("All selected folders have already been added", {
+        toast.error("All selected folder(s) have already been added", {
           richColors: true,
         });
         return;
@@ -110,6 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         processed: false,
         archived: false,
         name: folderPath.split("/").pop() || folderPath,
+        files: [],
       }));
 
       setFolders((prev) => [...prev, ...foldersToAdd]);
@@ -204,7 +246,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const params = new URLSearchParams({
       query_text: query,
-      match_count: matchCount.toString()
+      match_count: matchCount.toString(),
     });
 
     if (selectedFolderPaths.length > 0) {
@@ -221,7 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         method: "GET",
       }
     );
-    console.log(response);
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -244,13 +286,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const handleFileClick = async (filePath: string, fileName: string) => {
-    if (!fileName.endsWith(".txt")) {
-      toast.error("Only .txt files can be previewed", { richColors: true });
-      return;
-    }
+    // if (!fileName.endsWith(".txt")) {
+    //   toast.error("Only .txt files can be previewed", { richColors: true });
+    //   return;
+    // }
 
     try {
       const content = await window.electronAPI.readFile(filePath);
+      console.log(fileName);
       setSelectedFile({
         path: filePath,
         content: content,
@@ -292,7 +335,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
       .then((response) => response.json())
       .then((data) => {
-        // Mark all processed folders
+        // Mark all processed folders and fetch updated folder data
         const processedPaths = new Set(data.folderPaths);
         setFolders((prevFolders) =>
           prevFolders.map((f) =>
@@ -302,10 +345,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   processed: true,
                   archived: f.archived,
                   name: f.name,
+                  files: f.files,
                 }
               : f
           )
         );
+
+        // Fetch updated folder data with files from the database
+        return fetch("http://localhost:7777/folders/").then((res) =>
+          res.json()
+        );
+      })
+      .then((data) => {
+        // Merge updated folder data with existing state, preserving archived status
+        const updatedFoldersMap: Map<
+          string,
+          { path: string; name: string; files: string[] }
+        > = new Map(
+          data.folders.map(
+            (folder: {
+              path: string;
+              name: string;
+              files: Array<{ file_name: string }>;
+            }) => [
+              folder.path,
+              {
+                path: folder.path,
+                name: folder.name,
+                files: folder.files.map(
+                  (f: { file_name: string }) => f.file_name
+                ),
+              },
+            ]
+          )
+        );
+
+        setFolders((prevFolders) =>
+          prevFolders.map((f) => {
+            const updated = updatedFoldersMap.get(f.path);
+            return updated
+              ? {
+                  path: f.path,
+                  processed: true,
+                  archived: f.archived,
+                  name: updated.name,
+                  files: updated.files,
+                }
+              : f;
+          })
+        );
+
         setIsGeneratingEmbeddings(false);
         toast.success(
           `Finished processing ${unprocessedFolders.length} folder${
