@@ -42,10 +42,9 @@ interface AppContextType {
 
   // Actions
   handleSelectFolder: () => Promise<void>;
-  toggleFolderSelection: (index: number) => void;
-  archiveFolder: (index: number) => void;
-  unarchiveFolder: (index: number) => void;
-  permanentlyDeleteFolder: (folderPath: string) => Promise<void>;
+  archiveFolder: (folder: FolderData) => void;
+  unarchiveFolder: (folder: FolderData) => void;
+  permanentlyDeleteFolder: (folder: FolderData) => Promise<void>;
   handleSearch: () => Promise<void>;
   handleFileClick: (filePath: string, fileName: string) => Promise<void>;
   handleCloseFile: () => void;
@@ -67,12 +66,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false);
 
-  const isSearchDisabled =
-    folders.length === 0 ||
-    folders.some((f) => !f.archived && f.selected && !f.processed);
+  const isSearchDisabled = folders.length === 0;
 
   const hasUnprocessedSelectedFolders = folders.some(
-    (f) => !f.archived && f.selected && !f.processed
+    (f) => !f.archived && !f.processed
   );
 
   const handleSelectFolder = async () => {
@@ -99,39 +96,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const toggleFolderSelection = (index: number) => {
-    setFolders((prev) =>
-      prev.map((folder, i) =>
-        i === index ? { ...folder, selected: !folder.selected } : folder
-      )
-    );
-  };
-
-  const archiveFolder = (index: number) => {
+  const archiveFolder = (folder: FolderData) => {
     setFolders((prev) => {
-      const folder = prev[index];
-
       // If folder hasn't been processed, remove it completely (no DB data to archive)
       if (!folder.processed) {
-        return prev.filter((_, i) => i !== index);
+        return prev.filter((f) => f.path !== folder.path);
       }
 
       // Otherwise, archive it (marks it to be excluded from queries)
-      return prev.map((f, i) =>
-        i === index ? { ...f, archived: true, selected: false } : f
+      return prev.map((f) =>
+        f.path === folder.path ? { ...f, archived: true } : f
       );
     });
+
+    toast.info(`Folder "${folder.name}" archived`, { richColors: true });
+
+    // Reset query state since results may now be invalid
+    setResults(null);
+    setSelectedFile(null);
   };
 
-  const unarchiveFolder = (index: number) => {
+  const unarchiveFolder = (folder: FolderData) => {
     setFolders((prev) =>
-      prev.map((folder, i) =>
-        i === index ? { ...folder, archived: false, selected: true } : folder
-      )
+      prev.map((f) => (f.path === folder.path ? { ...f, archived: false } : f))
     );
+
+    toast.success(`Folder "${folder.name}" unarchived`, { richColors: true });
+
+    // Reset query state since results may now be invalid
+    setResults(null);
+    setSelectedFile(null);
   };
 
-  const permanentlyDeleteFolder = async (folderPath: string) => {
+  const permanentlyDeleteFolder = async (folder: FolderData) => {
+    const folderPath = folder.path;
     try {
       // Call backend to delete all files from this folder in the database
       const response = await fetch("http://localhost:7777/folder/", {
@@ -147,10 +145,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
-      console.log(`Deleted ${data.deletedCount} files from database`);
+
+      toast.success(
+        `Folder "${folder.name}" permanently deleted. Deleted ${data.deletedCount} files.`,
+        { richColors: true }
+      );
 
       // Remove folder from state after successful deletion
       setFolders((prev) => prev.filter((f) => f.path !== folderPath));
+
+      // Reset query state since results may now be invalid
+      setResults(null);
+      setSelectedFile(null);
     } catch (err) {
       console.error("Error deleting folder:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -162,9 +168,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const getQueryResults = async () => {
     const selectedFolderPaths = folders
-      .filter(
-        (folder) => !folder.archived && folder.selected && folder.processed
-      )
+      .filter((folder) => !folder.archived && folder.processed)
       .map((folder) => folder.path);
 
     const archivedFolderPaths = folders
@@ -235,9 +239,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const preprocess = async () => {
     // Get selected folders that haven't been processed yet (excluding archived)
-    let unprocessedFolders = folders.filter(
-      (f) => !f.archived && f.selected && !f.processed
-    );
+    let unprocessedFolders = folders.filter((f) => !f.archived && !f.processed);
 
     // If no folders are selected, get all unprocessed folders (excluding archived)
     if (unprocessedFolders.length === 0) {
@@ -271,7 +273,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             f.path === processedFolderPath
               ? {
                   path: f.path,
-                  selected: f.selected,
                   processed: true,
                   archived: f.archived,
                   name: f.name,
@@ -280,6 +281,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           )
         );
         setIsGeneratingEmbeddings(false);
+        toast.success(`Finished processing folder: ${folder.name}`, {
+          richColors: true,
+        });
       })
       .catch((err) => {
         console.error("Error processing folder:", err);
@@ -310,7 +314,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isSearchDisabled,
     hasUnprocessedSelectedFolders,
     handleSelectFolder,
-    toggleFolderSelection,
     archiveFolder,
     unarchiveFolder,
     permanentlyDeleteFolder,

@@ -3,7 +3,7 @@ import { FolderItemProps } from "./types";
 import { Button } from "../ui/button";
 import { useApp } from "@/context/AppContext";
 
-export function FolderItem({ folder, index, onRemove }: FolderItemProps) {
+export function FolderItem({ folder, onRemove }: FolderItemProps) {
   const { isGeneratingEmbeddings } = useApp();
   return (
     <div
@@ -15,15 +15,11 @@ export function FolderItem({ folder, index, onRemove }: FolderItemProps) {
             <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
           </div>
         )}
-        <Folder
-          className={`h-4 w-4 ${
-            folder.selected ? "text-blue-600" : "text-zinc-500"
-          }`}
-        />
+        <Folder className={`h-4 w-4`} />
         <span className={``}>{folder.name}</span>
       </div>
       <Button
-        onClick={() => onRemove(index)}
+        onClick={() => onRemove(folder)}
         className="flex items-center justify-center rounded p-1 group hover:bg-red-100 transition-colors"
         title="Remove folder"
         variant={"ghost"}

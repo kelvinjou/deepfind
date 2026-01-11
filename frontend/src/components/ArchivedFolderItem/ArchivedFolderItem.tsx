@@ -4,7 +4,6 @@ import { Button } from "../ui/button";
 
 export function ArchivedFolderItem({
   folder,
-  index,
   onUnarchive,
   onDelete,
 }: ArchivedFolderItemProps) {
@@ -16,7 +15,7 @@ export function ArchivedFolderItem({
       </div>
       <div className="flex gap-1">
         <Button
-          onClick={() => onUnarchive(index)}
+          onClick={() => onUnarchive(folder)}
           className="flex items-center justify-center"
           title="Restore to active folders"
           variant="ghost"
@@ -25,7 +24,7 @@ export function ArchivedFolderItem({
           <RotateCcw className="h-4 w-4 text-blue-600" />
         </Button>
         <Button
-          onClick={() => onDelete(folder.path)}
+          onClick={() => onDelete(folder)}
           className="flex items-center justify-center"
           title="Permanently delete"
           variant="ghost"

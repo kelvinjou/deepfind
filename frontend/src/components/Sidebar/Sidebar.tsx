@@ -10,7 +10,6 @@ export function Sidebar() {
     sidebarOpen,
     setSidebarOpen,
     handleSelectFolder,
-    toggleFolderSelection,
     archiveFolder,
     unarchiveFolder,
     permanentlyDeleteFolder,
@@ -57,8 +56,6 @@ export function Sidebar() {
                     <FolderItem
                       key={index}
                       folder={folder}
-                      index={folders.indexOf(folder)}
-                      onToggle={toggleFolderSelection}
                       onRemove={archiveFolder}
                     />
                   ))
@@ -76,7 +73,6 @@ export function Sidebar() {
                       <ArchivedFolderItem
                         key={index}
                         folder={folder}
-                        index={folders.indexOf(folder)}
                         onUnarchive={unarchiveFolder}
                         onDelete={permanentlyDeleteFolder}
                       />

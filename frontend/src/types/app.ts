@@ -1,7 +1,6 @@
 export interface FolderData {
   path: string;
   name: string;
-  selected: boolean;
   processed: boolean;
   archived: boolean;
 }
