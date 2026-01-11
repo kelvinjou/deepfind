@@ -23,16 +23,24 @@ function App() {
   const [embeddingResults, setEmbeddingResults] = useState<any[]>([])
   const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false)
 
+  const isSearchDisabled = folders.length === 0 || folders.some(f => f.selected && !f.processed);
+
   const handleSelectFolder = async () => {
     const result = await window.electronAPI.openDirectory()
     if (!result.canceled) {
       const folderPath = result.filePaths[0]
+      
+      // Check if folder already exists
+      if (folders.some((folder) => folder.path === folderPath)) {
+        setError("Folder already added")
+        setTimeout(() => setError(null), 2000)
+        return
+      }
+      
       const files = await window.electronAPI.readDirectory(folderPath)
       console.log(files)
       setFolders((prev) => [...prev, { path: folderPath, selected: true, processed: false }])
-//      setFolders((prev) => [...prev, { path: folderPath, selected: true }])
-//    }
-//  }
+    }
 //
 //  const handleGenerateEmbeddings = async () => {
 //    const selectedFolders = folders.filter((folder) => folder.selected)
@@ -42,36 +50,8 @@ function App() {
 //      return
 //    }
 
-    setIsGeneratingEmbeddings(true)
-    setError(null)
-    setEmbeddingResults([])
-
-    try {
-      const results: any[] = []
-      for (const folder of selectedFolders) {
-        const response = await fetch("http://localhost:7777/dir/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folderPath: folder.path })
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const data = await response.json()
-        console.log("Success:", data)
-        results.push({ folder: folder.path, data })
-      }
-      setEmbeddingResults(results)
-      setEmbeddingsGenerated(true)
-    } catch (error: any) {
-      console.error("Error:", error)
-      setError(error.message ?? "Failed to generate embeddings")
-    } finally {
-      setIsGeneratingEmbeddings(false)
-    }
   }
+  
 
   const toggleFolderSelection = (index: number) => {
     setFolders((prev) =>
@@ -87,7 +67,7 @@ function App() {
 
   const getQueryResults = async () => {
     const selectedFolderPaths = folders
-      .filter((folder) => folder.selected)
+      .filter((folder) => folder.selected && folder.processed)
       .map((folder) => folder.path)
 
     const params = new URLSearchParams({
@@ -111,7 +91,7 @@ function App() {
   }
 
   const handleSearch = async () => {
-    if (!query.trim() || !embeddingsGenerated) return
+    // if (!query.trim() || !embeddingsGenerated) return
 
     setLoading(true)
     setError(null)
@@ -123,24 +103,24 @@ function App() {
 
       console.log("Files from directory:", files)
 
-      const mockResults = {
-        results: files
-          .filter((file: FileInfo) => !file.isDirectory)
-          .map((file: FileInfo) => ({
-            file_name: file.name,
-            file_path: `${testDir}/${file.name}`,
-            content: "Test content preview...",
-            similarity_score: Math.random()
-          }))
-      }
+      // const mockResults = {
+      //   results: files
+      //     .filter((file: FileInfo) => !file.isDirectory)
+      //     .map((file: FileInfo) => ({
+      //       file_name: file.name,
+      //       file_path: `${testDir}/${file.name}`,
+      //       content: "Test content preview...",
+      //       similarity_score: Math.random()
+      //     }))
+      // }
 
       // Testing
-      console.log("Mock results:", mockResults)
-      setResults(mockResults)
+      // console.log("Mock results:", mockResults)
+      // setResults(mockResults)
 
       // Original API call
-      // const data = await getQueryResults()
-      // setResults(data)
+      const data = await getQueryResults()
+      setResults(data)
     } catch (err: any) {
       console.error("Search error:", err)
       setError(err.message ?? "Search failed")
@@ -207,6 +187,8 @@ function App() {
 
       // Kind of inefficient but shoot me okay
       setFolders(folders.map((folder) => (folder.path == processedFolderPath) ? { path: folder.path, selected: folder.selected, processed: true } : folder ))
+      console.log(folders.map(folder => folder.processed)) // for debugging
+
     })
     .catch((err) => {
       console.log(err)
@@ -237,7 +219,7 @@ function App() {
           placeholder={embeddingsGenerated ? "Search" : "Generate embeddings first to search"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          disabled={!embeddingsGenerated}
+          disabled={isSearchDisabled}
           onKeyDown={handleKeyDown}
           className="flex-1 border-1 shadow-none focus-visible:ring-0"
         />
@@ -284,7 +266,9 @@ function App() {
                           }`}
                         >
                           <button
-                            onClick={() => toggleFolderSelection(index)}
+                            onClick={() => {
+                              toggleFolderSelection(index);
+                            }}
                             className="flex flex-1 items-center gap-2 hover:opacity-80"
                           >
                             <div
@@ -344,22 +328,36 @@ function App() {
                 Add folders to search through your files
               </p>
 
-              <Button
-                onClick={handleGenerateEmbeddings}
-                className="flex items-center gap-2 text-lg"
-                size="lg"
-              >
-                <Plus className="h-5 w-5" />
-                Generate Embeddings
-              </Button>
-
               {embeddingResults.length > 0 && (
-                <div className="mt-6 w-full max-w-2xl text-left">
-                  <h3 className="text-sm font-semibold text-zinc-700 mb-2">Embedding Results</h3>
-                  <div className="rounded-lg border bg-white p-4 shadow-sm overflow-auto max-h-64">
-                    <pre className="text-xs text-zinc-600 whitespace-pre-wrap">
-                      {JSON.stringify(embeddingResults, null, 2)}
-                    </pre>
+                <div className="mt-6 w-full max-w-md text-left">
+                  <h3 className="text-sm font-semibold text-zinc-700 mb-3">Embedding Results</h3>
+                  <div className="rounded-lg border bg-white p-4 shadow-sm space-y-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-3 w-3 rounded-full ${embeddingResults[0]?.data?.status === 'success' ? 'bg-green-500' : 'bg-red-500'}`} />
+                      <span className="text-sm font-medium text-zinc-700">
+                        Status: {embeddingResults[0]?.data?.status === 'success' ? 'Success' : 'Failed'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-md bg-zinc-50 p-3">
+                        <p className="text-zinc-500 text-xs">Processed</p>
+                        <p className="text-xl font-semibold text-zinc-800">{embeddingResults[0]?.data?.processedCount ?? 0}</p>
+                      </div>
+                      <div className="rounded-md bg-zinc-50 p-3">
+                        <p className="text-zinc-500 text-xs">Total Attempted</p>
+                        <p className="text-xl font-semibold text-zinc-800">{embeddingResults[0]?.data?.totalAttempted ?? 0}</p>
+                      </div>
+                    </div>
+                    {embeddingResults[0]?.data?.failedFiles?.length > 0 && (
+                      <div className="rounded-md bg-red-50 p-3">
+                        <p className="text-red-600 text-xs font-medium mb-1">Failed Files ({embeddingResults[0]?.data?.failedFiles?.length})</p>
+                        <ul className="text-xs text-red-700 space-y-1">
+                          {embeddingResults[0]?.data?.failedFiles?.map((file: string, i: number) => (
+                            <li key={i} className="truncate">• {file}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -432,7 +430,7 @@ function App() {
       </div>
     </div>
   )
-  }
 }
 
-export default App()
+
+export default App
