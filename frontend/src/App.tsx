@@ -19,6 +19,9 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<{ path: string; content: string; name: string } | null>(null)
+  const [embeddingsGenerated, setEmbeddingsGenerated] = useState(false)
+  const [embeddingResults, setEmbeddingResults] = useState<any[]>([])
+  const [isGeneratingEmbeddings, setIsGeneratingEmbeddings] = useState(false)
 
   const handleSelectFolder = async () => {
     const result = await window.electronAPI.openDirectory()
@@ -27,13 +30,29 @@ function App() {
       const files = await window.electronAPI.readDirectory(folderPath)
       console.log(files)
       setFolders((prev) => [...prev, { path: folderPath, selected: true, processed: false }])
+//      setFolders((prev) => [...prev, { path: folderPath, selected: true }])
+//    }
+//  }
+//
+//  const handleGenerateEmbeddings = async () => {
+//    const selectedFolders = folders.filter((folder) => folder.selected)
+//    if (selectedFolders.length === 0) {
+//      setError("No folders selected")
+//      setTimeout(() => setError(null), 3000)
+//      return
+//    }
 
-      // Automatically submit the folder for processing
-      try {
+    setIsGeneratingEmbeddings(true)
+    setError(null)
+    setEmbeddingResults([])
+
+    try {
+      const results: any[] = []
+      for (const folder of selectedFolders) {
         const response = await fetch("http://localhost:7777/dir/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ folderPath })
+          body: JSON.stringify({ folderPath: folder.path })
         })
 
         if (!response.ok) {
@@ -42,9 +61,15 @@ function App() {
 
         const data = await response.json()
         console.log("Success:", data)
-      } catch (error) {
-        console.error("Error:", error)
+        results.push({ folder: folder.path, data })
       }
+      setEmbeddingResults(results)
+      setEmbeddingsGenerated(true)
+    } catch (error: any) {
+      console.error("Error:", error)
+      setError(error.message ?? "Failed to generate embeddings")
+    } finally {
+      setIsGeneratingEmbeddings(false)
     }
   }
 
@@ -66,7 +91,7 @@ function App() {
       .map((folder) => folder.path)
 
     const params = new URLSearchParams({
-      q: query,
+      query_text: query,
     })
 
     // Add selected folder paths to the query if any are selected
@@ -74,7 +99,7 @@ function App() {
       params.append("folders", JSON.stringify(selectedFolderPaths))
     }
 
-    const response = await fetch(`http://localhost:7777/query/?${params.toString()}`,
+    const response = await fetch(`http://localhost:7777/query?${params.toString()}`,
       {
         method: "GET",
       }
@@ -86,7 +111,7 @@ function App() {
   }
 
   const handleSearch = async () => {
-    if (!query.trim()) return
+    if (!query.trim() || !embeddingsGenerated) return
 
     setLoading(true)
     setError(null)
@@ -117,6 +142,7 @@ function App() {
       // const data = await getQueryResults()
       // setResults(data)
     } catch (err: any) {
+      console.error("Search error:", err)
       setError(err.message ?? "Search failed")
     } finally {
       setLoading(false)
@@ -208,9 +234,10 @@ function App() {
           <Sparkles></Sparkles>
         </Button>
         <Input
-          placeholder="Search"
+          placeholder={embeddingsGenerated ? "Search" : "Generate embeddings first to search"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          disabled={!embeddingsGenerated}
           onKeyDown={handleKeyDown}
           className="flex-1 border-1 shadow-none focus-visible:ring-0"
         />
@@ -316,12 +343,32 @@ function App() {
               <p className="mt-4 text-center text-sm text-zinc-500">
                 Add folders to search through your files
               </p>
+
+              <Button
+                onClick={handleGenerateEmbeddings}
+                className="flex items-center gap-2 text-lg"
+                size="lg"
+              >
+                <Plus className="h-5 w-5" />
+                Generate Embeddings
+              </Button>
+
+              {embeddingResults.length > 0 && (
+                <div className="mt-6 w-full max-w-2xl text-left">
+                  <h3 className="text-sm font-semibold text-zinc-700 mb-2">Embedding Results</h3>
+                  <div className="rounded-lg border bg-white p-4 shadow-sm overflow-auto max-h-64">
+                    <pre className="text-xs text-zinc-600 whitespace-pre-wrap">
+                      {JSON.stringify(embeddingResults, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {loading && (
+          {(loading || isGeneratingEmbeddings) && (
             <div className="text-center">
-              <p className="text-lg text-zinc-600">Searching...</p>
+              <p className="text-lg text-zinc-600">{isGeneratingEmbeddings ? "Embedding..." : "Searching..."}</p>
             </div>
           )}
 
@@ -366,9 +413,9 @@ function App() {
                           {result.content && (
                             <p className="text-sm text-zinc-600 mt-2">{result.content}</p>
                           )}
-                          {result.similarity_score && (
+                          {result.similarity && (
                             <p className="text-xs text-zinc-400 mt-2">
-                              Similarity: {(result.similarity_score * 100).toFixed(1)}%
+                              Similarity: {(result.similarity * 100).toFixed(1)}%
                             </p>
                           )}
                         </div>

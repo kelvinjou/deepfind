@@ -5,7 +5,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pydantic import FilePath
 import fitz  # PyMuPDF
-from app.semantic_chunking import semantic_chunk_text
+from lib.util.preprocessing.semantic_chunking import semantic_chunk_text
 
 # This utility file is for processing PDF files.
 # The goal is to take in a PDF file and return text chunks with page metadata.
@@ -32,7 +32,8 @@ def _sanitize_text(text: str) -> str:
     # Remove null bytes
     text = text.replace('\x00', '')
     # Remove other problematic control characters (except newline, tab, carriage return)
-    text = ''.join(char for char in text if char == '\n' or char == '\t' or char == '\r' or not (0 <= ord(char) < 32))
+    text = ''.join(char for char in text if char == '\n' or char ==
+                   '\t' or char == '\r' or not (0 <= ord(char) < 32))
     return text
 
 
