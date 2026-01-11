@@ -17,8 +17,7 @@ class SupabaseClient:
         url = os.getenv("SUPABASE_URL")
         key = os.getenv("SUPABASE_SECRET_KEY")
         if not url or not key:
-            raise ValueError(
-                "SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env")
+            raise ValueError("SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env")
         self._client: Client = create_client(url, key)
 
     @classmethod
@@ -98,7 +97,6 @@ class SupabaseClient:
         self,
         file_path: str,
         file_name: str,
-        file_type: str,
         mime_type: str,
         file_hash: str,
         last_modified_at: datetime,
@@ -111,7 +109,6 @@ class SupabaseClient:
         Args:
             file_path: Full path to the file
             file_name: Name of the file
-            file_type: Type/extension of the file (e.g., "audio", "pdf", "text")
             mime_type: MIME type of the file
             file_hash: SHA256 hash of the file
             last_modified_at: When the file was last modified
@@ -124,7 +121,6 @@ class SupabaseClient:
         data = {
             "file_path": file_path,
             "file_name": file_name,
-            "file_type": file_type,
             "mime_type": mime_type,
             "file_hash": file_hash,
             "file_size": file_size,
@@ -229,8 +225,7 @@ class SupabaseClient:
             Number of chunks inserted
         """
         if len(chunks) != len(embeddings):
-            raise ValueError(
-                f"Mismatch: {len(chunks)} chunks but {len(embeddings)} embeddings")
+            raise ValueError(f"Mismatch: {len(chunks)} chunks but {len(embeddings)} embeddings")
 
         rows = [
             {
@@ -273,7 +268,6 @@ class SupabaseClient:
         self,
         file_path: str,
         file_name: str,
-        file_type: str,
         mime_type: str,
         file_hash: str,
         last_modified_at: datetime,
@@ -291,7 +285,6 @@ class SupabaseClient:
         Args:
             file_path: Full path to the file
             file_name: Name of the file
-            file_type: Type of file (e.g., "audio", "pdf")
             mime_type: MIME type
             file_hash: SHA256 hash
             last_modified_at: File modification time
@@ -312,7 +305,6 @@ class SupabaseClient:
         file_id = self.insert_file(
             file_path=file_path,
             file_name=file_name,
-            file_type=file_type,
             mime_type=mime_type,
             file_hash=file_hash,
             last_modified_at=last_modified_at,

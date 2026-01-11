@@ -8,3 +8,8 @@ supabase
 python-dotenv
 pymupdf
 nltk
+openai-whisper
+torch
+transformers
+pillow
+accelerate
