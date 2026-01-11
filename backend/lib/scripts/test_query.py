@@ -8,7 +8,7 @@ Usage:
 """
 
 from lib.supabase.util import get_supabase_client
-from util.embedding import get_embedding
+from lib.util.embedding import get_embedding
 import json
 import sys
 from pathlib import Path

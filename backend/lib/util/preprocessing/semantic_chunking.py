@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 
-import sys
+
+from sentence_transformers import SentenceTransformer
+from nltk.tokenize import sent_tokenize
 import os
 import numpy as np
 
 # -------- Sentence splitting --------
 import nltk
 nltk.download("punkt_tab", quiet=True)
-from nltk.tokenize import sent_tokenize
 
 # -------- Embeddings --------
-from sentence_transformers import SentenceTransformer
 
 
 def read_txt_file(path: str) -> str:
     if not os.path.exists(path):
-        raise FileNotFoundError(f"File not found: {path}") 
+        raise FileNotFoundError(f"File not found: {path}")
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         return f.read()
 
@@ -122,22 +122,26 @@ def semantic_chunk_text(
     return chunks
 
 
-
 def main():
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Semantic text chunking")
     parser.add_argument("input_file", help="Path to input text file")
-    parser.add_argument("-o", "--output", help="Path to output file (optional)")
-    parser.add_argument("--overlap", type=int, default=2, help="Number of sentences to overlap between chunks (default: 0)")
-    parser.add_argument("--threshold", type=float, default=0.7, help="Similarity threshold (default: 0.7)")
-    parser.add_argument("--min-sentences", type=int, default=4, help="Minimum sentences per chunk (default: 4)")
-    parser.add_argument("--max-sentences", type=int, default=20, help="Maximum sentences per chunk (default: 20)")
-    
+    parser.add_argument(
+        "-o", "--output", help="Path to output file (optional)")
+    parser.add_argument("--overlap", type=int, default=2,
+                        help="Number of sentences to overlap between chunks (default: 0)")
+    parser.add_argument("--threshold", type=float, default=0.7,
+                        help="Similarity threshold (default: 0.7)")
+    parser.add_argument("--min-sentences", type=int, default=4,
+                        help="Minimum sentences per chunk (default: 4)")
+    parser.add_argument("--max-sentences", type=int, default=20,
+                        help="Maximum sentences per chunk (default: 20)")
+
     args = parser.parse_args()
 
     text = read_txt_file(args.input_file)
-    
+
     # Collect debug info
     debug_info = []
     chunks = semantic_chunk_text(
@@ -150,12 +154,12 @@ def main():
     )
 
     output_lines = []
-    
+
     # Add debug info first
     if debug_info:
         output_lines.extend(debug_info)
         output_lines.append("")
-    
+
     output_lines.append(f"Generated {len(chunks)} semantic chunks:\n")
     for i, chunk in enumerate(chunks, 1):
         output_lines.append(f"{'-'*80}")
@@ -165,7 +169,7 @@ def main():
         output_lines.append("")
 
     output_text = "\n".join(output_lines)
-    
+
     if args.output:
         with open(args.output, "w", encoding="utf-8") as f:
             f.write(output_text)
