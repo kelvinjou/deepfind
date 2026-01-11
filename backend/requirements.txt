@@ -1,6 +1,7 @@
 pandas
 sentence_transformers
 fastapi
+fastapi-mcp
 uvicorn
 langchain
 langchain_community
@@ -13,3 +14,4 @@ torch
 transformers
 pillow
 accelerate
+smolagents
