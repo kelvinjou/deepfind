@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { readdir, stat } from 'node:fs/promises'
+import { readdir, stat, readFile } from 'node:fs/promises'
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -103,6 +103,15 @@ ipcMain.handle('fs:getStats', async (_event, filePath: string) => {
     }
   } catch (error) {
     throw new Error(`Failed to get stats: ${error}`)
+  }
+})
+
+ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
+  try {
+    const content = await readFile(filePath, 'utf-8')
+    return content
+  } catch (error) {
+    throw new Error(`Failed to read file: ${error}`)
   }
 })
 
