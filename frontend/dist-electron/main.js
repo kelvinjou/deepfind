@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { readdir, stat } from "node:fs/promises";
+import { readdir, stat, readFile } from "node:fs/promises";
 createRequire(import.meta.url);
 const __dirname$1 = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname$1, "..");
@@ -72,6 +72,14 @@ ipcMain.handle("fs:getStats", async (_event, filePath) => {
     };
   } catch (error) {
     throw new Error(`Failed to get stats: ${error}`);
+  }
+});
+ipcMain.handle("fs:readFile", async (_event, filePath) => {
+  try {
+    const content = await readFile(filePath, "utf-8");
+    return content;
+  } catch (error) {
+    throw new Error(`Failed to read file: ${error}`);
   }
 });
 app.whenReady().then(createWindow);

@@ -17,6 +17,7 @@ function App() {
   const [results, setResults] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<{ path: string; content: string; name: string } | null>(null)
 
   const handleSelectFolder = async () => {
     const result = await window.electronAPI.openDirectory()
@@ -91,7 +92,7 @@ function App() {
 
     try {
       // Test: Display files from test_files/text
-      const testDir = "/Users/baileysay/projects/file-finder/backend/test_files/text"
+      const testDir = "/Users/baileysay/projects/file-finder/backend/test_files/image"
       const files = await window.electronAPI.readDirectory(testDir)
 
       console.log("Files from directory:", files)
@@ -122,6 +123,33 @@ function App() {
 
   const getSelectedFolders = () => {
     return folders.filter((folder) => folder.selected).map((folder) => folder.path)
+  }
+
+  const handleFileClick = async (filePath: string, fileName: string) => {
+    // Only handle .txt files for now
+    if (!fileName.endsWith('.txt')) {
+      setError("Only .txt files can be previewed")
+      setTimeout(() => setError(null), 3000)
+      return
+    }
+
+    try {
+      const content = await window.electronAPI.readFile(filePath)
+
+      setSelectedFile({
+        path: filePath,
+        content: content,
+        name: fileName
+
+      })
+      setError(null)
+    } catch (err: any) {
+      setError(`Failed to read file: ${err.message}`)
+    }
+  }
+
+  const handleCloseFile = () => {
+    setSelectedFile(null)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -258,15 +286,32 @@ function App() {
             </div>
           )}
 
-          {results && (
+          {selectedFile ? (
+            <div className="w-full max-w-4xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-zinc-800">{selectedFile.name}</h2>
+                <Button onClick={handleCloseFile} variant="outline" size="sm">
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+              </div>
+              <p className="text-sm text-zinc-500 mb-4">{selectedFile.path}</p>
+              <div className="rounded-lg border bg-white p-6 shadow-sm">
+                <pre className="whitespace-pre-wrap font-mono text-sm text-zinc-800 overflow-auto max-h-[60vh]">
+                  {selectedFile.content}
+                </pre>
+              </div>
+            </div>
+          ) : results && (
             <div className="w-full max-w-4xl">
               <h2 className="mb-4 text-xl font-semibold text-zinc-800">Search Results</h2>
               <div className="space-y-3 pb-8">
                 {results.results && results.results.length > 0 ? (
                   results.results.map((result: any, index: number) => (
-                    <div
+                    <button
                       key={index}
-                      className="rounded-lg border bg-white p-4 shadow-sm hover:shadow-md transition-shadow"
+                      onClick={() => handleFileClick(result.file_path, result.file_name)}
+                      className="w-full rounded-lg border bg-white p-4 shadow-sm hover:shadow-md transition-shadow text-left"
                     >
                       <div className="flex items-start gap-3">
                         <Folder className="h-5 w-5 text-zinc-500 mt-0.5" />
@@ -283,7 +328,7 @@ function App() {
                           )}
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))
                 ) : (
                   <p className="text-center text-zinc-500">No results found</p>

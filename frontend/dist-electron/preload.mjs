@@ -22,5 +22,6 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   openDirectory: () => electron.ipcRenderer.invoke("dialog:openDirectory"),
   openFile: () => electron.ipcRenderer.invoke("dialog:openFile"),
   readDirectory: (dirPath) => electron.ipcRenderer.invoke("fs:readDirectory", dirPath),
-  getStats: (filePath) => electron.ipcRenderer.invoke("fs:getStats", filePath)
+  getStats: (filePath) => electron.ipcRenderer.invoke("fs:getStats", filePath),
+  readFile: (filePath) => electron.ipcRenderer.invoke("fs:readFile", filePath)
 });

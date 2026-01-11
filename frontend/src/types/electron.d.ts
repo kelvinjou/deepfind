@@ -17,6 +17,7 @@ declare global {
       openFile: () => Promise<{ canceled: boolean; filePaths: string[] }>
       readDirectory: (dirPath: string) => Promise<FileInfo[]>
       getStats: (filePath: string) => Promise<FileStats>
+      readFile: (filePath: string) => Promise<string>
     }
   }
 }
