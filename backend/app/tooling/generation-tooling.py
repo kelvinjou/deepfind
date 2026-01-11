@@ -1,6 +1,6 @@
 # Tooling for generative tasks within the application
 
-from typing import List, Generator
+from typing import Dict, List, Generator
 
 from generation import generate_text
 
@@ -48,14 +48,77 @@ def prompt_refinement(original_prompt: str) -> str:
     return generate_text(prompt)
 
 
+def refined_vector_query(prompt: str): # might simplify too much?
+    prompt = (
+        f"Refine the following prompt to be more suitable for one or multiple mcp calls for a vector database query. "
+        f"Focus on key concepts and important terms.\n\n"
+        f"Make sure the query specifically splits concepts into separate terms for better vector matching.\n\n"
+        f"List the key topics/concepts using commas + new lines to separate them.\n\n"
+        f"ONLY return the refined query without any additional explanation or text.\n\n"
+        f"Include a header line that says: 'Search Query for the following topics:' before the refined query.\n\n"
+        f"Original Prompt: {prompt}\n\n"
+    )
+    return generate_text(prompt)
+
+def generate_outline(text, num_points: int = 5) -> str:
+    prompt = (
+        f"Generate an outline with {num_points} main points for the following text:\n\n{text}\n\n"
+        f"Format the outline as a numbered list."
+    )
+    return generate_text(prompt)
+
+# Synthesize multiple pieces of information into a coherent summary and sites the documents used
+def synthesize_information(document_text: List[tuple]) -> str:  # list of (document_name, document_content) tuples
+    combined_text = "\n\n".join([f"Document: {name}\nContent: {content}" for name, content in document_text])
+    prompt = (
+        f"Synthesize the following documents into a coherent summary. "
+        f"Cite the documents used in the synthesis by their name.\n\n"
+        f"{combined_text}\n\n"
+        f"Provide a clear and concise summary."
+    )
+    return generate_text(prompt)
+
+
+def compare_files(file_path_1: str, file_path_2: str) -> str:
+    with open(file_path_1, 'r') as file1, open(file_path_2, 'r') as file2:
+        content1 = file1.read()
+        content2 = file2.read()
+    
+    prompt = (
+        f"Compare the following two files and highlight their differences:\n\n"
+        f"File 1 Content:\n{content1}\n\n"
+        f"File 2 Content:\n{content2}\n\n"
+        f"Provide a summary of the differences."
+    )
+    return generate_text(prompt)
+
+
+
+
+
 if __name__ == "__main__":
+    # sample_text = "Artificial Intelligence (AI) is a branch of computer science that aims to create machines capable of intelligent behavior. It encompasses a variety of techniques and approaches, including machine learning, natural language processing, and robotics. AI has the potential to revolutionize many industries by automating tasks, improving decision-making, and enhancing user experiences."
+    # print("Summary:")
+    # print(summarize_text(sample_text))
+    
+    # print("\nGenerated File Name:")
+    # print(generate_file_name(sample_text, max_length=5, include_date=True, include_topic=True))
+    
+    # print("\nRefined Prompt:")
+    # original_prompt = "I need to organize my files on AI, travel, and finances better."
+    # print(prompt_refinement(original_prompt))
+    
+    # print("\nRefined Vector Query:")
+    # query_prompt = "Find documents related to advancements in artificial intelligence, machine learning, my taxes, and my travel documents."
+    # print(refined_vector_query(query_prompt))
+    
+    print("\nGenerated Outline:")
     sample_text = "Artificial Intelligence (AI) is a branch of computer science that aims to create machines capable of intelligent behavior. It encompasses a variety of techniques and approaches, including machine learning, natural language processing, and robotics. AI has the potential to revolutionize many industries by automating tasks, improving decision-making, and enhancing user experiences."
-    print("Summary:")
-    print(summarize_text(sample_text))
+    print(generate_outline(sample_text, num_points=4))
     
-    print("\nGenerated File Name:")
-    print(generate_file_name(sample_text, max_length=5, include_date=True, include_topic=True))
-    
-    print("\nRefined Prompt:")
-    original_prompt = "I need to organize my files on AI, travel, and finances better."
-    print(prompt_refinement(original_prompt))
+    print("\nSynthesize Information:")
+    documents = (
+        ("AI_Overview.txt", "Artificial Intelligence (AI) is a branch of computer science that aims to create machines capable of intelligent behavior."),
+        ("AI_Applications.txt", "AI has applications in various fields including healthcare, finance, and transportation."),
+    )
+    print(synthesize_information(documents))
