@@ -1,9 +1,12 @@
--- Function to perform semantic search on chunks using vector similarity
-CREATE OR REPLACE FUNCTION query_file_chunks (
+-- Drop the old function if it exists
+DROP FUNCTION IF EXISTS query_file_chunks(vector, float, int, text[]);
+
+-- Clean rewrite: semantic search function using pure SQL
+CREATE FUNCTION query_file_chunks (
   query_embedding vector(768),
-  match_threshold float default 0.5,
-  match_count int default 10,
-  archived_folders text[] default '{}'
+  match_threshold float DEFAULT 0.1,
+  match_count int DEFAULT 10,
+  archived_folders text[] DEFAULT array[]::text[]
 )
 RETURNS TABLE (
   chunk_id uuid,
@@ -16,17 +19,11 @@ RETURNS TABLE (
   mime_type text,
   similarity float
 )
-LANGUAGE plpgsql STABLE
+LANGUAGE sql
+STABLE
 AS $$
-BEGIN
-  RAISE LOG 'DEBUG: query_embedding dimensions check';
-  RAISE LOG 'DEBUG: archived_folders = %', archived_folders;
-  RAISE LOG 'DEBUG: match_threshold = %', match_threshold;
-  RAISE LOG 'DEBUG: match_count = %', match_count;
-
-  RETURN QUERY
   SELECT
-    c.id AS chunk_id,
+    c.id,
     c.file_id,
     c.chunk_index,
     c.content,
@@ -34,18 +31,19 @@ BEGIN
     f.file_name,
     f.file_path,
     f.mime_type,
-    1 - (c.embedding <=> query_embedding) AS similarity
+    (1 - (c.embedding <=> query_embedding))::float
   FROM chunks c
-  JOIN files f ON c.file_id = f.id
+  INNER JOIN files f ON c.file_id = f.id
   WHERE c.embedding IS NOT NULL
-    AND 1 - (c.embedding <=> query_embedding) > match_threshold
-    -- Exclude files from archived folders
-    AND NOT EXISTS (
-      SELECT 1
-      FROM unnest(archived_folders) AS af(folder)
-      WHERE f.file_path LIKE af.folder || '%'
+    AND (1 - (c.embedding <=> query_embedding)) > match_threshold
+    AND (
+      archived_folders = array[]::text[]
+      OR NOT EXISTS (
+        SELECT 1
+        FROM unnest(archived_folders) AS archived_path
+        WHERE f.file_path LIKE archived_path || '%'
+      )
     )
-  ORDER BY c.embedding <=> query_embedding ASC
+  ORDER BY c.embedding <=> query_embedding
   LIMIT match_count;
-END;
 $$;
