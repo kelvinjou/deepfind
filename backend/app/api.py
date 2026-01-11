@@ -1,4 +1,5 @@
 from app.model import StoreAssetRequest
+from lib.supabase.util import get_supabase_client
 from lib.scripts.test_query import query_chunks
 from lib.util.db_process import push_to_db
 from fastapi import FastAPI
@@ -47,16 +48,19 @@ async def post_directory_path(payload: StoreAssetRequest) -> dict:
         "failedFiles": result["failed_files"]
     }
 
+
 @app.get("/query")
 async def query_files(query_text: str) -> dict:
     print(f"Query received: {query_text}")
     match_threshold = 0.3
     match_count = 10
-    results = query_chunks(
-        query_text,
+    client = get_supabase_client()
+    results = client.query_files(
+        query=query_text,
         match_threshold=match_threshold,
         match_count=match_count
     )
+
     print(f"Found {len(results)} results")
     return {
         "query": query_text,

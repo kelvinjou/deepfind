@@ -40,7 +40,7 @@ def getFileProperties(file_path: str) -> UserFile:
     mime_type, _ = mimetypes.guess_type(file_path)
     res = UserFile(
         path=str(p),
-        file_name=p.stem,
+        file_name=p.name,
         file_size=p.stat().st_size,
         last_modified=datetime.fromtimestamp(p.stat().st_mtime),
         # if can't determine, will default to octet-stream
