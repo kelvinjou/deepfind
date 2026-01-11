@@ -1,3 +1,5 @@
+from backend.app.model import StoreAssetRequest
+from backend.util.db_process import push_to_db
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,3 +24,20 @@ db_service = None
 @app.get("/", tags=["root"])
 async def read_root() -> dict:
     return {"message": "Welcome"}
+
+@app.post("/dir/")
+async def post_directory_path(payload: StoreAssetRequest) -> dict:
+    """Process files from a directory and return processing results.
+    
+    Returns:
+        dict: Contains status, processed count, failed files list, and folder path
+    """
+    result = push_to_db(payload.folderPath)
+    
+    return {
+        "folderPath": payload.folderPath,
+        "status": result["status"],
+        "processedCount": result["processed_count"],
+        "totalAttempted": result.get("total_attempted", 0),
+        "failedFiles": result["failed_files"]
+    }
